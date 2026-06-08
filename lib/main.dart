@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'providers/theme_provider.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/sales_screen.dart';
 import 'screens/transactions_screen.dart';
 
 void main() {
@@ -138,6 +139,7 @@ class _MainShellState extends State<MainShell> {
 
     final List<Widget> screens = [
       DashboardScreen(themeProvider: widget.themeProvider),
+      const SalesScreen(),
       const TransactionsScreen(),
     ];
 
@@ -153,6 +155,11 @@ class _MainShellState extends State<MainShell> {
             icon: Icon(Icons.dashboard_outlined),
             selectedIcon: Icon(Icons.dashboard),
             label: 'Dashboard',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.bar_chart_outlined),
+            selectedIcon: Icon(Icons.bar_chart),
+            label: 'Sales',
           ),
           NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),

@@ -23,76 +23,68 @@ class DashboardScreen extends StatelessWidget {
             // ── App Bar ──────────────────────────────────────────────────
             SliverAppBar(
               pinned: true,
+              floating: false,
               backgroundColor: bgColor,
               surfaceTintColor: Colors.transparent,
-              expandedHeight: 120,
-              // Theme toggle action
+              automaticallyImplyLeading: false,
+              toolbarHeight: 72,
+              title: Row(
+                children: [
+                  // ── Left: greeting ──────────────────────────────────
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Hello, Admin 👋',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: scheme.onSurface,
+                              ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Monday, Jun 8 2026  •  Techwise Solutions',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                color: scheme.onSurface.withValues(alpha: 0.5),
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
               actions: [
+                // ── Theme toggle ─────────────────────────────────────
                 ListenableBuilder(
                   listenable: themeProvider,
-                  builder: (_, __) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: _ThemeToggleButton(provider: themeProvider),
+                  builder: (_, __) =>
+                      _ThemeToggleButton(provider: themeProvider),
+                ),
+                // ── Avatar ───────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: scheme.primaryContainer,
+                    child: Text(
+                      'A',
+                      style: TextStyle(
+                        color: scheme.onPrimaryContainer,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
                   ),
                 ),
               ],
-              flexibleSpace: FlexibleSpaceBar(
-                collapseMode: CollapseMode.pin,
-                background: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 16),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Hello, Admin 👋',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineSmall
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: scheme.onSurface,
-                                    ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Monday, Jun 8 2026  •  Techwise Solutions',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: scheme.onSurface
-                                          .withValues(alpha: 0.5),
-                                    ),
-                              ),
-                            ],
-                          ),
-                          // Avatar
-                          CircleAvatar(
-                            radius: 22,
-                            backgroundColor: scheme.primaryContainer,
-                            child: Text(
-                              'A',
-                              style: TextStyle(
-                                color: scheme.onPrimaryContainer,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ),
 
             // ── Body ─────────────────────────────────────────────────────
@@ -100,6 +92,7 @@ class DashboardScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
+                  const SizedBox(height: 4),
                   const _SectionLabel(label: 'Overview'),
                   const SizedBox(height: 8),
                   GridView.builder(
@@ -165,27 +158,20 @@ class _ThemeToggleButton extends StatelessWidget {
     final isDark = provider.isDark;
     final scheme = Theme.of(context).colorScheme;
 
-    return AnimatedContainer(
+    return AnimatedSwitcher(
       duration: const Duration(milliseconds: 300),
-      decoration: BoxDecoration(
-        color: isDark
-            ? scheme.primaryContainer.withValues(alpha: 0.3)
-            : scheme.primaryContainer.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(20),
-      ),
+      transitionBuilder: (child, anim) =>
+          ScaleTransition(scale: anim, child: child),
       child: IconButton(
-        icon: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          transitionBuilder: (child, anim) =>
-              RotationTransition(turns: anim, child: child),
-          child: Icon(
-            isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-            key: ValueKey(isDark),
-            color: isDark ? Colors.amber : scheme.primary,
-            size: 22,
-          ),
+        key: ValueKey(isDark),
+        icon: Icon(
+          isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+          color: isDark ? Colors.amber.shade300 : scheme.primary,
+          size: 20,
         ),
-        tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+        tooltip: isDark ? 'Light mode' : 'Dark mode',
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
         onPressed: provider.toggle,
       ),
     );
