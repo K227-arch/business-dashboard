@@ -4,11 +4,11 @@ import '../models/transaction_model.dart';
 /// A list tile for a single transaction entry.
 class TransactionTile extends StatelessWidget {
   final TransactionModel transaction;
-
   const TransactionTile({super.key, required this.transaction});
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final isCredit = transaction.type == TransactionType.credit;
     final amountColor =
         isCredit ? const Color(0xFF34A853) : const Color(0xFFEA4335);
@@ -25,7 +25,7 @@ class TransactionTile extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: amountColor.withOpacity(0.1),
+                color: amountColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -46,14 +46,14 @@ class TransactionTile extends StatelessWidget {
                     transaction.customerName,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: scheme.onSurface,
                         ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     transaction.description,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[600],
+                          color: scheme.onSurface.withValues(alpha: 0.55),
                         ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -62,25 +62,27 @@ class TransactionTile extends StatelessWidget {
                     children: [
                       Text(
                         transaction.id,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: Colors.grey[400],
-                            ),
+                        style:
+                            Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: scheme.onSurface.withValues(alpha: 0.38),
+                                ),
                       ),
                       const SizedBox(width: 8),
                       Container(
                         width: 4,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: Colors.grey[300],
+                          color: scheme.onSurface.withValues(alpha: 0.2),
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         transaction.date,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: Colors.grey[400],
-                            ),
+                        style:
+                            Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: scheme.onSurface.withValues(alpha: 0.38),
+                                ),
                       ),
                     ],
                   ),
@@ -111,18 +113,14 @@ class TransactionTile extends StatelessWidget {
   }
 
   String _formatAmount(double amount) {
-    if (amount >= 1000000) {
-      return '${(amount / 1000000).toStringAsFixed(2)}M';
-    } else if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(0)}K';
-    }
+    if (amount >= 1000000) return '${(amount / 1000000).toStringAsFixed(2)}M';
+    if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(0)}K';
     return amount.toStringAsFixed(0);
   }
 }
 
 class _StatusBadge extends StatelessWidget {
   final TransactionStatus status;
-
   const _StatusBadge({required this.status});
 
   @override
@@ -148,7 +146,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(

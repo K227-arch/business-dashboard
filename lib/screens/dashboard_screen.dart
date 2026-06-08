@@ -1,33 +1,46 @@
 import 'package:flutter/material.dart';
 import '../data/mock_data.dart';
+import '../providers/theme_provider.dart';
 import '../widgets/summary_card.dart';
 import '../widgets/sales_chart.dart';
 import '../widgets/activity_tile.dart';
 
 /// Screen 1: Main Dashboard
-/// Shows welcome header, KPI summary cards, weekly sales chart,
-/// and a recent activity feed — all populated from mock data.
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
+  final ThemeProvider themeProvider;
+  const DashboardScreen({super.key, required this.themeProvider});
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final bgColor = Theme.of(context).scaffoldBackgroundColor;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FD),
+      backgroundColor: bgColor,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
             // ── App Bar ──────────────────────────────────────────────────
             SliverAppBar(
               pinned: true,
-              backgroundColor: const Color(0xFFF6F8FD),
+              backgroundColor: bgColor,
               surfaceTintColor: Colors.transparent,
               expandedHeight: 120,
+              // Theme toggle action
+              actions: [
+                ListenableBuilder(
+                  listenable: themeProvider,
+                  builder: (_, __) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _ThemeToggleButton(provider: themeProvider),
+                  ),
+                ),
+              ],
               flexibleSpace: FlexibleSpaceBar(
                 collapseMode: CollapseMode.pin,
                 background: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 16),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.end,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,7 +58,7 @@ class DashboardScreen extends StatelessWidget {
                                     .headlineSmall
                                     ?.copyWith(
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
+                                      color: scheme.onSurface,
                                     ),
                               ),
                               const SizedBox(height: 2),
@@ -54,19 +67,21 @@ class DashboardScreen extends StatelessWidget {
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodySmall
-                                    ?.copyWith(color: Colors.grey[500]),
+                                    ?.copyWith(
+                                      color: scheme.onSurface
+                                          .withValues(alpha: 0.5),
+                                    ),
                               ),
                             ],
                           ),
                           // Avatar
                           CircleAvatar(
                             radius: 22,
-                            backgroundColor:
-                                Theme.of(context).colorScheme.primaryContainer,
+                            backgroundColor: scheme.primaryContainer,
                             child: Text(
                               'A',
                               style: TextStyle(
-                                color: Theme.of(context).colorScheme.primary,
+                                color: scheme.onPrimaryContainer,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 18,
                               ),
@@ -85,8 +100,7 @@ class DashboardScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  // Summary cards grid
-                  _SectionLabel(label: 'Overview'),
+                  const _SectionLabel(label: 'Overview'),
                   const SizedBox(height: 8),
                   GridView.builder(
                     shrinkWrap: true,
@@ -105,15 +119,13 @@ class DashboardScreen extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
-                  // Sales chart
-                  _SectionLabel(label: 'Sales Performance'),
+                  const _SectionLabel(label: 'Sales Performance'),
                   const SizedBox(height: 8),
                   const SalesChart(),
 
                   const SizedBox(height: 24),
 
-                  // Recent activity
-                  _SectionLabel(label: 'Recent Activity'),
+                  const _SectionLabel(label: 'Recent Activity'),
                   const SizedBox(height: 8),
                   Card(
                     child: Padding(
@@ -143,10 +155,46 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
-/// Simple section label widget.
+// ── Theme toggle button ────────────────────────────────────────────────────
+class _ThemeToggleButton extends StatelessWidget {
+  final ThemeProvider provider;
+  const _ThemeToggleButton({required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = provider.isDark;
+    final scheme = Theme.of(context).colorScheme;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      decoration: BoxDecoration(
+        color: isDark
+            ? scheme.primaryContainer.withValues(alpha: 0.3)
+            : scheme.primaryContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: IconButton(
+        icon: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          transitionBuilder: (child, anim) =>
+              RotationTransition(turns: anim, child: child),
+          child: Icon(
+            isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+            key: ValueKey(isDark),
+            color: isDark ? Colors.amber : scheme.primary,
+            size: 22,
+          ),
+        ),
+        tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+        onPressed: provider.toggle,
+      ),
+    );
+  }
+}
+
+// ── Section label ──────────────────────────────────────────────────────────
 class _SectionLabel extends StatelessWidget {
   final String label;
-
   const _SectionLabel({required this.label});
 
   @override
@@ -155,7 +203,7 @@ class _SectionLabel extends StatelessWidget {
       label,
       style: Theme.of(context).textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
     );
   }

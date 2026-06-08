@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/mock_data.dart';
 
 /// A bar chart showing weekly sales built with fl_chart.
+/// Fully respects light/dark theme.
 class SalesChart extends StatefulWidget {
   const SalesChart({super.key});
 
@@ -15,7 +16,15 @@ class _SalesChartState extends State<SalesChart> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = scheme.primary;
+
+    // Adaptive colors
+    final labelColor = scheme.onSurface.withValues(alpha: 0.5);
+    final gridColor = scheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.1);
+    final bgRodColor = scheme.onSurface.withValues(alpha: isDark ? 0.05 : 0.06);
+    final tooltipBg = isDark ? const Color(0xFF2C2F36) : Colors.black87;
 
     return Card(
       child: Padding(
@@ -23,7 +32,7 @@ class _SalesChartState extends State<SalesChart> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header row
+            // ── Header ──────────────────────────────────────────────────
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -32,22 +41,25 @@ class _SalesChartState extends State<SalesChart> {
                   children: [
                     Text(
                       'Weekly Sales',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                      style:
+                          Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       'Jun 2 – Jun 8, 2026  •  in millions (UGX)',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[500],
+                            color: scheme.onSurface.withValues(alpha: 0.45),
                           ),
                     ),
                   ],
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: primary.withOpacity(0.1),
+                    color: primary.withValues(alpha: isDark ? 0.18 : 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -62,7 +74,8 @@ class _SalesChartState extends State<SalesChart> {
               ],
             ),
             const SizedBox(height: 20),
-            // Chart
+
+            // ── Bar chart ────────────────────────────────────────────────
             SizedBox(
               height: 160,
               child: BarChart(
@@ -70,26 +83,23 @@ class _SalesChartState extends State<SalesChart> {
                   maxY: 4.0,
                   barTouchData: BarTouchData(
                     touchTooltipData: BarTouchTooltipData(
-                      getTooltipColor: (_) => Colors.black87,
+                      getTooltipColor: (_) => tooltipBg,
                       tooltipRoundedRadius: 8,
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        return BarTooltipItem(
-                          'UGX ${rod.toY.toStringAsFixed(1)}M',
-                          const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        );
-                      },
+                      getTooltipItem: (group, _, rod, __) => BarTooltipItem(
+                        'UGX ${rod.toY.toStringAsFixed(1)}M',
+                        const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
                     touchCallback: (event, response) {
                       setState(() {
-                        if (response == null || response.spot == null) {
-                          _touchedIndex = null;
-                        } else {
-                          _touchedIndex = response.spot!.touchedBarGroupIndex;
-                        }
+                        _touchedIndex = (response == null ||
+                                response.spot == null)
+                            ? null
+                            : response.spot!.touchedBarGroupIndex;
                       });
                     },
                   ),
@@ -98,36 +108,36 @@ class _SalesChartState extends State<SalesChart> {
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          final index = value.toInt();
-                          if (index < 0 || index >= MockData.weekDays.length) {
+                        reservedSize: 28,
+                        getTitlesWidget: (value, _) {
+                          final i = value.toInt();
+                          if (i < 0 || i >= MockData.weekDays.length) {
                             return const SizedBox.shrink();
                           }
                           return Padding(
                             padding: const EdgeInsets.only(top: 6),
                             child: Text(
-                              MockData.weekDays[index],
+                              MockData.weekDays[i],
                               style: TextStyle(
-                                color: Colors.grey[600],
+                                color: labelColor,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                           );
                         },
-                        reservedSize: 28,
                       ),
                     ),
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
                         reservedSize: 36,
-                        getTitlesWidget: (value, meta) {
+                        getTitlesWidget: (value, _) {
                           if (value % 1 != 0) return const SizedBox.shrink();
                           return Text(
                             '${value.toInt()}M',
                             style: TextStyle(
-                              color: Colors.grey[400],
+                              color: labelColor,
                               fontSize: 10,
                             ),
                           );
@@ -135,43 +145,43 @@ class _SalesChartState extends State<SalesChart> {
                       ),
                     ),
                     rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
+                        sideTitles: SideTitles(showTitles: false)),
                     topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
+                        sideTitles: SideTitles(showTitles: false)),
                   ),
                   borderData: FlBorderData(show: false),
                   gridData: FlGridData(
                     show: true,
                     drawVerticalLine: false,
                     horizontalInterval: 1,
-                    getDrawingHorizontalLine: (_) => FlLine(
-                      color: Colors.grey.withOpacity(0.15),
-                      strokeWidth: 1,
-                    ),
+                    getDrawingHorizontalLine: (_) =>
+                        FlLine(color: gridColor, strokeWidth: 1),
                   ),
-                  barGroups: List.generate(MockData.weeklySales.length, (index) {
-                    final isTouched = _touchedIndex == index;
-                    return BarChartGroupData(
-                      x: index,
-                      barRods: [
-                        BarChartRodData(
-                          toY: MockData.weeklySales[index],
-                          color: isTouched ? primary : primary.withOpacity(0.65),
-                          width: 22,
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(6),
+                  barGroups: List.generate(
+                    MockData.weeklySales.length,
+                    (i) {
+                      final isTouched = _touchedIndex == i;
+                      return BarChartGroupData(
+                        x: i,
+                        barRods: [
+                          BarChartRodData(
+                            toY: MockData.weeklySales[i],
+                            color: isTouched
+                                ? primary
+                                : primary.withValues(alpha: 0.65),
+                            width: 22,
+                            borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(6)),
+                            backDrawRodData: BackgroundBarChartRodData(
+                              show: true,
+                              toY: 4.0,
+                              color: bgRodColor,
+                            ),
                           ),
-                          backDrawRodData: BackgroundBarChartRodData(
-                            show: true,
-                            toY: 4.0,
-                            color: Colors.grey.withOpacity(0.07),
-                          ),
-                        ),
-                      ],
-                    );
-                  }),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
             ),

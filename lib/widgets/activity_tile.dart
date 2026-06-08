@@ -14,6 +14,8 @@ class ActivityTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Column(
       children: [
         Padding(
@@ -26,10 +28,11 @@ class ActivityTile extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: activity.iconColor.withOpacity(0.12),
+                  color: activity.iconColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(activity.icon, color: activity.iconColor, size: 20),
+                child:
+                    Icon(activity.icon, color: activity.iconColor, size: 20),
               ),
               const SizedBox(width: 12),
               // Text
@@ -41,14 +44,14 @@ class ActivityTile extends StatelessWidget {
                       activity.title,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: Colors.black87,
+                            color: scheme.onSurface,
                           ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       activity.description,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey[600],
+                            color: scheme.onSurface.withValues(alpha: 0.55),
                           ),
                     ),
                   ],
@@ -59,7 +62,7 @@ class ActivityTile extends StatelessWidget {
               Text(
                 activity.timeAgo,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[400],
+                      color: scheme.onSurface.withValues(alpha: 0.38),
                       fontSize: 11,
                     ),
               ),
@@ -67,7 +70,10 @@ class ActivityTile extends StatelessWidget {
           ),
         ),
         if (showDivider)
-          Divider(height: 1, color: Colors.grey.withOpacity(0.15)),
+          Divider(
+            height: 1,
+            color: scheme.onSurface.withValues(alpha: 0.08),
+          ),
       ],
     );
   }
