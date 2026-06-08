@@ -1,0 +1,74 @@
+import 'package:flutter/material.dart';
+import '../models/activity_model.dart';
+
+/// A single row in the Recent Activity list.
+class ActivityTile extends StatelessWidget {
+  final ActivityModel activity;
+  final bool showDivider;
+
+  const ActivityTile({
+    super.key,
+    required this.activity,
+    this.showDivider = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Icon badge
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: activity.iconColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(activity.icon, color: activity.iconColor, size: 20),
+              ),
+              const SizedBox(width: 12),
+              // Text
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      activity.title,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      activity.description,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.grey[600],
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Time
+              Text(
+                activity.timeAgo,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[400],
+                      fontSize: 11,
+                    ),
+              ),
+            ],
+          ),
+        ),
+        if (showDivider)
+          Divider(height: 1, color: Colors.grey.withOpacity(0.15)),
+      ],
+    );
+  }
+}
