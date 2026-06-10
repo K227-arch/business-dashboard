@@ -4,7 +4,8 @@ import 'screens/dashboard_screen.dart';
 import 'screens/sales_screen.dart';
 import 'screens/transactions_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const BusinessDashboardApp());
 }
 

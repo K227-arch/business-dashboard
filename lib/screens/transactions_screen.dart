@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../data/mock_data.dart';
 import '../models/transaction_model.dart';
+import '../repositories/transactions_repository.dart';
+import '../services/frappe_client.dart';
 import '../widgets/transaction_tile.dart';
 
 /// Screen 2: Transactions / Details Page
@@ -12,26 +14,50 @@ class TransactionsScreen extends StatefulWidget {
 }
 
 class _TransactionsScreenState extends State<TransactionsScreen> {
+  final _repo = const TransactionsRepository();
+
+  List<TransactionModel>? _liveData;
+  bool _loading = false;
+  String? _error;
   TransactionStatus? _activeFilter;
 
-  List<TransactionModel> get _filtered {
-    if (_activeFilter == null) return MockData.transactions;
-    return MockData.transactions
-        .where((t) => t.status == _activeFilter)
-        .toList();
+  @override
+  void initState() {
+    super.initState();
+    _load();
   }
 
-  double get _totalCredits => MockData.transactions
-      .where((t) => t.type == TransactionType.credit)
-      .fold(0, (sum, t) => sum + t.amount);
+  Future<void> _load() async {
+    if (!FrappeClient.isConnected) return;
+    setState(() { _loading = true; _error = null; });
+    try {
+      final data = await _repo.getTransactions(limit: 100);
+      if (mounted) setState(() => _liveData = data);
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
-  double get _totalDebits => MockData.transactions
+  List<TransactionModel> get _all => _liveData ?? MockData.transactions;
+
+  List<TransactionModel> get _filtered {
+    if (_activeFilter == null) return _all;
+    return _all.where((t) => t.status == _activeFilter).toList();
+  }
+
+  double get _totalCredits => _all
+      .where((t) => t.type == TransactionType.credit)
+      .fold(0, (s, t) => s + t.amount);
+
+  double get _totalDebits => _all
       .where((t) => t.type == TransactionType.debit)
-      .fold(0, (sum, t) => sum + t.amount);
+      .fold(0, (s, t) => s + t.amount);
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final scheme  = Theme.of(context).colorScheme;
     final bgColor = Theme.of(context).scaffoldBackgroundColor;
 
     return Scaffold(
@@ -39,7 +65,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            // ── App Bar ───────────────────────────────────────────────────
+            // ── App Bar ─────────────────────────────────────────────────
             SliverAppBar(
               pinned: true,
               backgroundColor: bgColor,
@@ -52,6 +78,18 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),
               actions: [
+                if (FrappeClient.isConnected)
+                  IconButton(
+                    icon: _loading
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.refresh_rounded),
+                    onPressed: _loading ? null : _load,
+                    tooltip: 'Refresh',
+                  ),
                 IconButton(
                   icon: const Icon(Icons.tune_rounded),
                   tooltip: 'Filter',
@@ -64,7 +102,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  // ── Summary strip ──────────────────────────────────────
+                  // ── Error banner ────────────────────────────────────
+                  if (_error != null)
+                    _ErrorBanner(message: _error!, onRetry: _load),
+
+                  // ── Summary strip ───────────────────────────────────
                   const SizedBox(height: 4),
                   Row(
                     children: [
@@ -89,7 +131,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // ── Filter chips ───────────────────────────────────────
+                  // ── Filter chips ────────────────────────────────────
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -114,8 +156,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           label: 'Pending',
                           isSelected:
                               _activeFilter == TransactionStatus.pending,
-                          onTap: () => setState(
-                              () => _activeFilter = TransactionStatus.pending),
+                          onTap: () => setState(() =>
+                              _activeFilter = TransactionStatus.pending),
                           color: const Color(0xFFFBBC04),
                         ),
                         const SizedBox(width: 8),
@@ -123,8 +165,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           label: 'Failed',
                           isSelected:
                               _activeFilter == TransactionStatus.failed,
-                          onTap: () => setState(
-                              () => _activeFilter = TransactionStatus.failed),
+                          onTap: () => setState(() =>
+                              _activeFilter = TransactionStatus.failed),
                           color: const Color(0xFFEA4335),
                         ),
                       ],
@@ -132,7 +174,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // ── Count label ────────────────────────────────────────
+                  // ── Count ───────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Text(
@@ -143,8 +185,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     ),
                   ),
 
-                  // ── Transaction list ───────────────────────────────────
-                  if (_filtered.isEmpty)
+                  // ── List ────────────────────────────────────────────
+                  if (_loading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (_filtered.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 40),
                       child: Center(
@@ -156,9 +203,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       ),
                     )
                   else
-                    ...(_filtered
-                        .map((t) => TransactionTile(transaction: t))
-                        .toList()),
+                    ..._filtered.map((t) => TransactionTile(transaction: t)),
 
                   const SizedBox(height: 24),
                 ]),
@@ -183,13 +228,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Filter by Status',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
+            Text('Filter by Status',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             _sheetOption('All', null),
             _sheetOption('Completed', TransactionStatus.completed),
@@ -204,11 +247,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   Widget _sheetOption(String label, TransactionStatus? status) {
     final isSelected = _activeFilter == status;
-    final scheme = Theme.of(context).colorScheme;
     return ListTile(
       leading: Icon(
         isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-        color: scheme.primary,
+        color: Theme.of(context).colorScheme.primary,
       ),
       title: Text(label),
       onTap: () {
@@ -226,13 +268,52 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 }
 
-// ── Mini stat card ─────────────────────────────────────────────────────────
+// ── Error banner ─────────────────────────────────────────────────────────────
+class _ErrorBanner extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _ErrorBanner({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEA4335).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+            color: const Color(0xFFEA4335).withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline_rounded,
+              color: Color(0xFFEA4335), size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(message,
+                style: const TextStyle(
+                    color: Color(0xFFEA4335), fontSize: 12),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text('Retry',
+                style: TextStyle(color: Color(0xFFEA4335))),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Mini stat card ────────────────────────────────────────────────────────────
 class _MiniStatCard extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
   final IconData icon;
-
   const _MiniStatCard({
     required this.label,
     required this.value,
@@ -260,19 +341,15 @@ class _MiniStatCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: scheme.onSurface.withValues(alpha: 0.5),
-                      ),
-                ),
-                Text(
-                  value,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: color,
-                      ),
-                ),
+                Text(label,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: scheme.onSurface.withValues(alpha: 0.5),
+                        )),
+                Text(value,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        )),
               ],
             ),
           ],
@@ -282,13 +359,12 @@ class _MiniStatCard extends StatelessWidget {
   }
 }
 
-// ── Filter chip ────────────────────────────────────────────────────────────
+// ── Filter chip ───────────────────────────────────────────────────────────────
 class _FilterChip extends StatelessWidget {
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
   final Color color;
-
   const _FilterChip({
     required this.label,
     required this.isSelected,
@@ -313,16 +389,13 @@ class _FilterChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected ? color : unselectedBg,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? color : unselectedBorder,
-          ),
+          border: Border.all(color: isSelected ? color : unselectedBorder),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: color.withValues(alpha: 0.25),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  )
+                      color: color.withValues(alpha: 0.25),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2))
                 ]
               : [],
         ),
@@ -331,7 +404,10 @@ class _FilterChip extends StatelessWidget {
           style: TextStyle(
             color: isSelected
                 ? Colors.white
-                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
+                : Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.65),
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             fontSize: 13,
           ),

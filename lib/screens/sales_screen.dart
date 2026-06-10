@@ -2,10 +2,11 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../data/mock_data.dart';
 import '../models/sale_item_model.dart';
+import '../repositories/sales_repository.dart';
+import '../services/frappe_client.dart';
 
 /// Screen 3: Sales Page
-/// Mirrors the Loyverse-style layout: date navigator, period filter,
-/// Sales Summary card with ring stats + bar chart, and an Items list.
+/// Loads live data from ERPNext when configured; falls back to mock data.
 class SalesScreen extends StatefulWidget {
   const SalesScreen({super.key});
 
@@ -14,14 +15,47 @@ class SalesScreen extends StatefulWidget {
 }
 
 class _SalesScreenState extends State<SalesScreen> {
+  final _repo = const SalesRepository();
+
   SalesPeriod _period = SalesPeriod.today;
-  DateTime _date = DateTime(2026, 6, 8);
+  DateTime    _date   = DateTime.now();
+  SalesSummary? _liveSummary;
+  bool   _loading = false;
+  String? _error;
 
   SalesSummary get _summary =>
-      MockData.salesSummaries[_period] ?? MockData.salesSummaries[SalesPeriod.today]!;
+      _liveSummary ??
+      MockData.salesSummaries[_period] ??
+      MockData.salesSummaries[SalesPeriod.today]!;
 
-  void _prevDate() => setState(() => _date = _date.subtract(const Duration(days: 1)));
-  void _nextDate() => setState(() => _date = _date.add(const Duration(days: 1)));
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (!FrappeClient.isConnected) return;
+    setState(() { _loading = true; _error = null; });
+    try {
+      final data = await _repo.getSalesSummary(period: _period, date: _date);
+      if (mounted) setState(() => _liveSummary = data);
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _prevDate() {
+    setState(() => _date = _date.subtract(const Duration(days: 1)));
+    _load();
+  }
+
+  void _nextDate() {
+    setState(() => _date = _date.add(const Duration(days: 1)));
+    _load();
+  }
 
   String get _dateLabel {
     const months = [
@@ -39,35 +73,56 @@ class _SalesScreenState extends State<SalesScreen> {
       backgroundColor: bgColor,
       body: Column(
         children: [
-          // ── Blue header ────────────────────────────────────────────────
           _SalesHeader(
             dateLabel: _dateLabel,
             onPrev: _prevDate,
             onNext: _nextDate,
             onFilterTap: _showPeriodSheet,
             period: _period,
+            isLoading: _loading,
+            onRefresh: _load,
           ),
-
-          // ── Scrollable body ────────────────────────────────────────────
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Sales summary card
-                _SalesSummaryCard(summary: _summary, period: _period),
-                const SizedBox(height: 16),
-
-                // Items list
-                _ItemsSection(items: _summary.items),
-              ],
+          if (_error != null)
+            Material(
+              color: const Color(0xFFEA4335).withValues(alpha: 0.1),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline_rounded,
+                        color: Color(0xFFEA4335), size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                        child: Text(_error!,
+                            style: const TextStyle(
+                                color: Color(0xFFEA4335), fontSize: 12))),
+                    TextButton(
+                      onPressed: _load,
+                      child: const Text('Retry',
+                          style: TextStyle(color: Color(0xFFEA4335))),
+                    ),
+                  ],
+                ),
+              ),
             ),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      _SalesSummaryCard(summary: _summary, period: _period),
+                      const SizedBox(height: 16),
+                      _ItemsSection(items: _summary.items),
+                    ],
+                  ),
           ),
         ],
       ),
     );
   }
 
-  // ── Period bottom sheet (same pattern as Transactions filter) ─────────────
+  // ── Period bottom sheet ───────────────────────────────────────────────────
   void _showPeriodSheet() {
     showModalBottomSheet(
       context: context,
@@ -120,6 +175,7 @@ class _SalesScreenState extends State<SalesScreen> {
           setState(() => _period = opt.$1);
           setSheet(() {});
           Navigator.pop(context);
+          _load(); // reload with new period
         },
       );
     }).toList();
@@ -135,6 +191,8 @@ class _SalesHeader extends StatelessWidget {
   final VoidCallback onNext;
   final VoidCallback onFilterTap;
   final SalesPeriod period;
+  final bool isLoading;
+  final VoidCallback onRefresh;
 
   const _SalesHeader({
     required this.dateLabel,
@@ -142,6 +200,8 @@ class _SalesHeader extends StatelessWidget {
     required this.onNext,
     required this.onFilterTap,
     required this.period,
+    required this.isLoading,
+    required this.onRefresh,
   });
 
   String get _periodLabel {
@@ -160,66 +220,82 @@ class _SalesHeader extends StatelessWidget {
     return SafeArea(
       bottom: false,
       child: Container(
+        width: double.infinity,
         color: bg,
-        child: Column(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            // Title row
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            // ── Centered column: title + subtitle + date row ──────────
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Sales',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Techwise Solutions',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left,
+                          color: Colors.white, size: 28),
+                      onPressed: onPrev,
+                    ),
+                    Text(
+                      dateLabel,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right,
+                          color: Colors.white, size: 28),
+                      onPressed: onNext,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            // ── Filter icon: top-right, independent ───────────────────
+            Positioned(
+              top: 0,
+              right: 8,
               child: Row(
                 children: [
-                  const Spacer(),
-                  const Column(
-                    children: [
-                      Text(
-                        'Sales',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'Techwise Solutions',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  // Period filter icon
+                  if (FrappeClient.isConnected)
+                    IconButton(
+                      icon: isLoading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.refresh_rounded,
+                              color: Colors.white, size: 20),
+                      onPressed: isLoading ? null : onRefresh,
+                    ),
                   IconButton(
                     icon: const Icon(Icons.tune_rounded,
                         color: Colors.white, size: 22),
                     tooltip: 'Select period: $_periodLabel',
                     onPressed: onFilterTap,
-                  ),
-                ],
-              ),
-            ),
-            // Date navigator
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left,
-                        color: Colors.white, size: 28),
-                    onPressed: onPrev,
-                  ),
-                  Text(
-                    dateLabel,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right,
-                        color: Colors.white, size: 28),
-                    onPressed: onNext,
                   ),
                 ],
               ),
