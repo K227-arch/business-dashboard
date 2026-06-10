@@ -6,7 +6,6 @@ import '../providers/theme_provider.dart';
 import '../repositories/dashboard_repository.dart';
 import '../services/frappe_client.dart';
 import '../widgets/activity_tile.dart';
-import '../widgets/frappe_status_card.dart';
 import '../widgets/sales_chart.dart';
 import '../widgets/summary_card.dart';
 
@@ -174,10 +173,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   const SizedBox(height: 4),
-                  const _SectionLabel(label: 'ERPNext Connection'),
-                  const SizedBox(height: 8),
-                  const FrappeStatusCard(),
-                  const SizedBox(height: 24),
                   const _SectionLabel(label: 'Overview'),
                   const SizedBox(height: 8),
                   _loading

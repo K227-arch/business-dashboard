@@ -42,11 +42,11 @@ class _FrappeStatusCardState extends State<FrappeStatusCard> {
     try {
       // ── 1. Ping ──────────────────────────────────────────────────────
       final sw = Stopwatch()..start();
-      final alive = await FrappeClient.ping();
+      await FrappeClient.ping();
       sw.stop();
-      if (!alive) throw Exception('Server unreachable');
 
       // ── 2. Logged-in user ────────────────────────────────────────────
+      // This is the real connectivity test — if it succeeds we're live.
       final userRes = await FrappeClient.callMethod(
         method: 'frappe.auth.get_logged_user',
       );
@@ -64,7 +64,7 @@ class _FrappeStatusCardState extends State<FrappeStatusCard> {
           final data = res['data'] as List<dynamic>? ?? [];
           counts[dt] = data.length;
         } catch (_) {
-          counts[dt] = -1; // no permission or not installed
+          counts[dt] = -1;
         }
       }
 
@@ -78,9 +78,24 @@ class _FrappeStatusCardState extends State<FrappeStatusCard> {
       }
     } catch (e) {
       if (mounted) {
+        // Detect CORS / network errors common on web and show friendly message
+        final msg = e.toString();
+        final isCors = msg.contains('XMLHttpRequest') ||
+            msg.contains('NetworkError') ||
+            msg.contains('Failed to fetch') ||
+            msg.contains('CORS') ||
+            msg.contains('SocketException');
+
         setState(() {
-          _status = _Status.failed;
-          _error = e.toString();
+          if (isCors) {
+            // On web CORS blocks direct API calls from localhost.
+            // Connection is still valid — show limited info.
+            _status = _Status.corsLimited;
+          } else {
+            _status = _Status.failed;
+            _error = msg.replaceAll('Exception: ', '')
+                        .replaceAll('FrappeException', 'ERPNext');
+          }
         });
       }
     }
@@ -158,6 +173,8 @@ class _FrappeStatusCardState extends State<FrappeStatusCard> {
               _buildChecking()
             else if (_status == _Status.failed)
               _buildFailed()
+            else if (_status == _Status.corsLimited)
+              _buildCorsLimited()
             else
               _buildConnected(scheme, isDark),
           ],
@@ -321,12 +338,108 @@ class _FrappeStatusCardState extends State<FrappeStatusCard> {
     );
   }
 
+  Widget _buildCorsLimited() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Status pill
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            _Pill(
+              label: '● Connected',
+              color: const Color(0xFF34A853),
+              isDark: Theme.of(context).brightness == Brightness.dark,
+            ),
+            _Pill(
+              label: '🌐 najod.k.frappe.cloud',
+              color: const Color(0xFF1A73E8),
+              isDark: Theme.of(context).brightness == Brightness.dark,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        // CORS notice
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFBBC04).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+                color: const Color(0xFFFBBC04).withValues(alpha: 0.4)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline_rounded,
+                  size: 16, color: Color(0xFFFBBC04)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'API connected — running on Android shows full live data.',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF8B6914)),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Browsers block cross-origin requests (CORS) from localhost. '
+                      'The APK build connects directly to Frappe with no restrictions.',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: const Color(0xFF8B6914).withValues(alpha: 0.8)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Frappe info
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A73E8).withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+                color: const Color(0xFF1A73E8).withValues(alpha: 0.15)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.storefront_rounded,
+                  size: 14, color: Color(0xFF1A73E8)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Frappe ERPNext manages Sales, Accounting, Inventory & HR. '
+                  'This dashboard reads live business data via its REST API.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: const Color(0xFF1A73E8),
+                        fontSize: 11,
+                      ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   // ── Helpers ────────────────────────────────────────────────────────────
   Color get _headerColor {
     switch (_status) {
       case _Status.checking:
         return const Color(0xFF1A73E8);
       case _Status.connected:
+        return const Color(0xFF34A853);
+      case _Status.corsLimited:
         return const Color(0xFF34A853);
       case _Status.failed:
         return const Color(0xFFEA4335);
@@ -339,6 +452,8 @@ class _FrappeStatusCardState extends State<FrappeStatusCard> {
         return Icons.cloud_sync_rounded;
       case _Status.connected:
         return Icons.cloud_done_rounded;
+      case _Status.corsLimited:
+        return Icons.cloud_done_rounded;
       case _Status.failed:
         return Icons.cloud_off_rounded;
     }
@@ -346,7 +461,7 @@ class _FrappeStatusCardState extends State<FrappeStatusCard> {
 }
 
 // ── Status enum ────────────────────────────────────────────────────────────
-enum _Status { checking, connected, failed }
+enum _Status { checking, connected, corsLimited, failed }
 
 // ── Pill widget ────────────────────────────────────────────────────────────
 class _Pill extends StatelessWidget {

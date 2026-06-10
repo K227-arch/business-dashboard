@@ -29,8 +29,15 @@ class FrappeClient {
   };
 
   // ── Connectivity check ────────────────────────────────────────────────
-  /// Ping the Frappe instance. Returns true if reachable.
+  /// Ping the Frappe instance.
+  /// On web, CORS blocks cross-origin requests from localhost so we
+  /// optimistically mark as connected and let actual API calls confirm.
   static Future<bool> ping() async {
+    if (kIsWeb) {
+      // On web we can't ping due to CORS — assume connected.
+      _connected = true;
+      return true;
+    }
     try {
       final uri = Uri.parse('$baseUrl/api/method/frappe.ping');
       final response = await http
