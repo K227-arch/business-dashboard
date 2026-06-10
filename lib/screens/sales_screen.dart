@@ -1,9 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import '../data/mock_data.dart';
 import '../models/sale_item_model.dart';
 import '../repositories/sales_repository.dart';
-import '../services/frappe_client.dart';
 
 /// Screen 3: Sales Page
 /// Loads live data from ERPNext when configured; falls back to mock data.
@@ -20,13 +18,17 @@ class _SalesScreenState extends State<SalesScreen> {
   SalesPeriod _period = SalesPeriod.today;
   DateTime    _date   = DateTime.now();
   SalesSummary? _liveSummary;
-  bool   _loading = false;
+  bool   _loading = true;
   String? _error;
 
-  SalesSummary get _summary =>
-      _liveSummary ??
-      MockData.salesSummaries[_period] ??
-      MockData.salesSummaries[SalesPeriod.today]!;
+  // Empty summary — shown when Frappe returns no data
+  static const SalesSummary _emptySummary = SalesSummary(
+    receipts: 0, netSales: 0, averageSale: 0,
+    receiptsChange: 0, netSalesChange: 0, averageSaleChange: 0,
+    hourlyData: [], items: [],
+  );
+
+  SalesSummary get _summary => _liveSummary ?? _emptySummary;
 
   @override
   void initState() {
@@ -35,7 +37,6 @@ class _SalesScreenState extends State<SalesScreen> {
   }
 
   Future<void> _load() async {
-    if (!FrappeClient.isConnected) return;
     setState(() { _loading = true; _error = null; });
     try {
       final data = await _repo.getSalesSummary(period: _period, date: _date);
@@ -279,18 +280,17 @@ class _SalesHeader extends StatelessWidget {
               right: 8,
               child: Row(
                 children: [
-                  if (FrappeClient.isConnected)
-                    IconButton(
-                      icon: isLoading
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.refresh_rounded,
-                              color: Colors.white, size: 20),
-                      onPressed: isLoading ? null : onRefresh,
-                    ),
+                  IconButton(
+                    icon: isLoading
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.refresh_rounded,
+                            color: Colors.white, size: 20),
+                    onPressed: isLoading ? null : onRefresh,
+                  ),
                   IconButton(
                     icon: const Icon(Icons.tune_rounded,
                         color: Colors.white, size: 22),

@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
-import '../data/mock_data.dart';
 import '../models/activity_model.dart';
 import '../models/summary_card_model.dart';
 import '../providers/theme_provider.dart';
 import '../repositories/dashboard_repository.dart';
-import '../services/frappe_client.dart';
 import '../widgets/activity_tile.dart';
 import '../widgets/sales_chart.dart';
 import '../widgets/summary_card.dart';
 
-/// Screen 1: Main Dashboard
-/// Loads live data from ERPNext when configured; falls back to mock data.
+/// Screen 1: Main Dashboard — all data loaded live from Frappe ERPNext.
 class DashboardScreen extends StatefulWidget {
   final ThemeProvider themeProvider;
   const DashboardScreen({super.key, required this.themeProvider});
@@ -22,9 +19,9 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final _repo = const DashboardRepository();
 
-  List<SummaryCardModel>? _cards;
-  List<ActivityModel>?    _activity;
-  bool _loading = false;
+  List<SummaryCardModel> _cards = [];
+  List<ActivityModel>    _activity = [];
+  bool _loading = true;
   String? _error;
 
   @override
@@ -34,8 +31,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _load() async {
-    if (!FrappeClient.isConnected) return; // stay on mock data
-
     setState(() { _loading = true; _error = null; });
     try {
       final results = await Future.wait([
@@ -54,12 +49,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) setState(() => _loading = false);
     }
   }
-
-  List<SummaryCardModel> get _displayCards =>
-      _cards ?? MockData.summaryCards;
-
-  List<ActivityModel> get _displayActivity =>
-      _activity ?? MockData.recentActivity;
 
   @override
   Widget build(BuildContext context) {
@@ -112,31 +101,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
               actions: [
-                // Live / mock indicator
-                if (FrappeClient.isConnected)
-                  const Padding(
-                    padding: EdgeInsets.only(right: 4),
-                    child: Chip(
-                      label: Text('Live',
-                          style: TextStyle(fontSize: 11, color: Colors.white)),
-                      backgroundColor: Color(0xFF34A853),
-                      padding: EdgeInsets.zero,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
                 // Refresh button
-                if (FrappeClient.isConnected)
-                  IconButton(
-                    icon: _loading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.refresh_rounded),
-                    onPressed: _loading ? null : _load,
-                    tooltip: 'Refresh',
-                  ),
+                IconButton(
+                  icon: _loading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh_rounded),
+                  onPressed: _loading ? null : _load,
+                  tooltip: 'Refresh from ERPNext',
+                ),
                 ListenableBuilder(
                   listenable: widget.themeProvider,
                   builder: (_, __) =>
@@ -163,8 +139,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             // ── Error banner ─────────────────────────────────────────────
             if (_error != null)
               SliverToBoxAdapter(
-                child: _ErrorBanner(
-                    message: _error!, onRetry: _load),
+                child: _ErrorBanner(message: _error!, onRetry: _load),
               ),
 
             // ── Body ─────────────────────────────────────────────────────
@@ -173,49 +148,76 @@ class _DashboardScreenState extends State<DashboardScreen> {
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   const SizedBox(height: 4),
+
+                  // ── KPI cards ──────────────────────────────────────────
                   const _SectionLabel(label: 'Overview'),
                   const SizedBox(height: 8),
                   _loading
                       ? const _SkeletonGrid()
-                      : GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: _displayCards.length,
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 12,
-                            crossAxisSpacing: 12,
-                            childAspectRatio: 1.05,
-                          ),
-                          itemBuilder: (_, i) =>
-                              SummaryCard(data: _displayCards[i]),
-                        ),
+                      : _cards.isEmpty
+                          ? _EmptyState(
+                              icon: Icons.dashboard_outlined,
+                              message:
+                                  'No data yet.\nAdd records in ERPNext to see live KPIs.',
+                              onRefresh: _load,
+                            )
+                          : GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: _cards.length,
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 12,
+                                crossAxisSpacing: 12,
+                                childAspectRatio: 1.05,
+                              ),
+                              itemBuilder: (_, i) =>
+                                  SummaryCard(data: _cards[i]),
+                            ),
+
                   const SizedBox(height: 24),
+
+                  // ── Sales chart ────────────────────────────────────────
                   const _SectionLabel(label: 'Sales Performance'),
                   const SizedBox(height: 8),
                   const SalesChart(),
+
                   const SizedBox(height: 24),
+
+                  // ── Recent activity ────────────────────────────────────
                   const _SectionLabel(label: 'Recent Activity'),
                   const SizedBox(height: 8),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      child: _loading
-                          ? const _SkeletonList(count: 4)
-                          : Column(
-                              children: List.generate(
-                                _displayActivity.length,
-                                (i) => ActivityTile(
-                                  activity: _displayActivity[i],
-                                  showDivider:
-                                      i < _displayActivity.length - 1,
+                  _loading
+                      ? const Card(
+                          child: Padding(
+                            padding: EdgeInsets.all(12),
+                            child: _SkeletonList(count: 4),
+                          ),
+                        )
+                      : _activity.isEmpty
+                          ? _EmptyState(
+                              icon: Icons.notifications_none_rounded,
+                              message:
+                                  'No recent activity.\nCommunications from ERPNext will appear here.',
+                              onRefresh: _load,
+                            )
+                          : Card(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                child: Column(
+                                  children: List.generate(
+                                    _activity.length,
+                                    (i) => ActivityTile(
+                                      activity: _activity[i],
+                                      showDivider: i < _activity.length - 1,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                    ),
-                  ),
+
                   const SizedBox(height: 24),
                 ]),
               ),
@@ -273,6 +275,42 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
+// ── Empty state ───────────────────────────────────────────────────────────────
+class _EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String message;
+  final VoidCallback onRefresh;
+  const _EmptyState(
+      {required this.icon, required this.message, required this.onRefresh});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+      child: Column(
+        children: [
+          Icon(icon, size: 40, color: scheme.onSurface.withValues(alpha: 0.2)),
+          const SizedBox(height: 12),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurface.withValues(alpha: 0.4),
+                ),
+          ),
+          const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: onRefresh,
+            icon: const Icon(Icons.refresh_rounded, size: 16),
+            label: const Text('Refresh'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Error banner ─────────────────────────────────────────────────────────────
 class _ErrorBanner extends StatelessWidget {
   final String message;
@@ -287,8 +325,8 @@ class _ErrorBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFEA4335).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-            color: const Color(0xFFEA4335).withValues(alpha: 0.35)),
+        border:
+            Border.all(color: const Color(0xFFEA4335).withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
@@ -296,13 +334,10 @@ class _ErrorBanner extends StatelessWidget {
               color: Color(0xFFEA4335), size: 18),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                  color: Color(0xFFEA4335), fontSize: 12),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: Text(message,
+                style: const TextStyle(color: Color(0xFFEA4335), fontSize: 12),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis),
           ),
           TextButton(
             onPressed: onRetry,
@@ -315,7 +350,7 @@ class _ErrorBanner extends StatelessWidget {
   }
 }
 
-// ── Skeleton loaders ──────────────────────────────────────────────────────────
+// ── Skeletons ─────────────────────────────────────────────────────────────────
 class _SkeletonGrid extends StatelessWidget {
   const _SkeletonGrid();
   @override
@@ -342,12 +377,10 @@ class _SkeletonList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: List.generate(
-        count,
-        (_) => const Padding(
-          padding: EdgeInsets.symmetric(vertical: 6),
-          child: _Skeleton(height: 48),
-        ),
-      ),
+          count,
+          (_) => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 6),
+              child: _Skeleton(height: 48))),
     );
   }
 }

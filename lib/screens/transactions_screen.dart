@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import '../data/mock_data.dart';
 import '../models/transaction_model.dart';
 import '../repositories/transactions_repository.dart';
-import '../services/frappe_client.dart';
 import '../widgets/transaction_tile.dart';
 
 /// Screen 2: Transactions / Details Page
@@ -16,8 +14,8 @@ class TransactionsScreen extends StatefulWidget {
 class _TransactionsScreenState extends State<TransactionsScreen> {
   final _repo = const TransactionsRepository();
 
-  List<TransactionModel>? _liveData;
-  bool _loading = false;
+  List<TransactionModel> _liveData = [];
+  bool _loading = true;
   String? _error;
   TransactionStatus? _activeFilter;
 
@@ -28,7 +26,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 
   Future<void> _load() async {
-    if (!FrappeClient.isConnected) return;
     setState(() { _loading = true; _error = null; });
     try {
       final data = await _repo.getTransactions(limit: 100);
@@ -40,7 +37,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
   }
 
-  List<TransactionModel> get _all => _liveData ?? MockData.transactions;
+  List<TransactionModel> get _all => _liveData;
 
   List<TransactionModel> get _filtered {
     if (_activeFilter == null) return _all;
@@ -78,18 +75,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),
               actions: [
-                if (FrappeClient.isConnected)
-                  IconButton(
-                    icon: _loading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.refresh_rounded),
-                    onPressed: _loading ? null : _load,
-                    tooltip: 'Refresh',
-                  ),
+                IconButton(
+                  icon: _loading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh_rounded),
+                  onPressed: _loading ? null : _load,
+                  tooltip: 'Refresh',
+                ),
                 IconButton(
                   icon: const Icon(Icons.tune_rounded),
                   tooltip: 'Filter',
