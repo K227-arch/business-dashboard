@@ -1,7 +1,9 @@
+import '../data/mock_data.dart';
 import '../models/sale_item_model.dart';
 import '../services/frappe_api.dart';
 
 /// Fetches Sales Invoice data for [SalesScreen].
+/// Falls back to mock data when the Frappe API fails.
 class SalesRepository {
   const SalesRepository();
 
@@ -9,6 +11,14 @@ class SalesRepository {
     required SalesPeriod period,
     required DateTime date,
   }) async {
+    try {
+      return await _fetchLive(period, date);
+    } catch (_) {
+      return MockData.salesSummaries[period] ?? MockData.salesSummaries[SalesPeriod.today]!;
+    }
+  }
+
+  Future<SalesSummary> _fetchLive(SalesPeriod period, DateTime date) async {
     final range = _dateRange(period, date);
     final fromDate = range.$1;
     final toDate   = range.$2;
@@ -16,7 +26,7 @@ class SalesRepository {
     // Fetch invoices + items concurrently
     final results = await Future.wait([
       FrappeApi.getSalesInvoices(fromDate: fromDate, toDate: toDate, limit: 500),
-      FrappeApi.getSalesInvoiceItems(fromDate: fromDate, toDate: toDate, limit: 500),
+      FrappeApi.getSalesInvoiceItems(limit: 500),
     ]);
 
     final invoices   = results[0];

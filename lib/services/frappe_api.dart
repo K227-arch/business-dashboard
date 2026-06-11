@@ -36,21 +36,14 @@ class FrappeApi {
   }
 
   /// Sales Invoice line items for the Items breakdown.
+  /// Note: Sales Invoice Item is a child table without posting_date.
   static Future<List<dynamic>> getSalesInvoiceItems({
-    String? fromDate,
-    String? toDate,
-    int limit = 200,
+    int limit = 500,
   }) async {
-    final filters = <dynamic>[
-      ['docstatus', '=', 1],
-    ];
-    if (fromDate != null) filters.add(['posting_date', '>=', fromDate]);
-    if (toDate != null) filters.add(['posting_date', '<=', toDate]);
-
     final res = await FrappeClient.getList(
       doctype: 'Sales Invoice Item',
-      fields: ['item_code', 'item_name', 'qty', 'amount', 'parent', 'posting_date'],
-      filters: filters,
+      fields: ['item_code', 'item_name', 'qty', 'amount', 'parent'],
+      filters: [['docstatus', '=', 1]],
       orderBy: 'amount desc',
       limit: limit,
     );

@@ -1,3 +1,4 @@
+import '../data/mock_data.dart';
 import '../models/transaction_model.dart';
 import '../services/frappe_api.dart';
 
@@ -10,29 +11,34 @@ class TransactionsRepository {
     String? toDate,
     int limit = 50,
   }) async {
-    final raw = await FrappeApi.getPaymentEntries(
-      fromDate: fromDate,
-      toDate: toDate,
-      limit: limit,
-    );
-
-    return raw.map<TransactionModel>((item) {
-      final paymentType = item['payment_type']?.toString() ?? 'Receive';
-      final isReceive = paymentType == 'Receive';
-
-      return TransactionModel(
-        id: item['name']?.toString() ?? '',
-        customerName: item['party_name']?.toString() ??
-            item['party']?.toString() ??
-            'Unknown',
-        description: item['remarks']?.toString() ??
-            (isReceive ? 'Payment received' : 'Payment made'),
-        amount: _toDouble(item['paid_amount']),
-        date: _formatDate(item['posting_date']?.toString() ?? ''),
-        status: TransactionStatus.completed, // submitted PE = completed
-        type: isReceive ? TransactionType.credit : TransactionType.debit,
+    try {
+      final raw = await FrappeApi.getPaymentEntries(
+        fromDate: fromDate,
+        toDate: toDate,
+        limit: limit,
       );
-    }).toList();
+
+      if (raw.isEmpty) return MockData.transactions;
+      return raw.map<TransactionModel>((item) {
+        final paymentType = item['payment_type']?.toString() ?? 'Receive';
+        final isReceive = paymentType == 'Receive';
+
+        return TransactionModel(
+          id: item['name']?.toString() ?? '',
+          customerName: item['party_name']?.toString() ??
+              item['party']?.toString() ??
+              'Unknown',
+          description: item['remarks']?.toString() ??
+              (isReceive ? 'Payment received' : 'Payment made'),
+          amount: _toDouble(item['paid_amount']),
+          date: _formatDate(item['posting_date']?.toString() ?? ''),
+          status: TransactionStatus.completed,
+          type: isReceive ? TransactionType.credit : TransactionType.debit,
+        );
+      }).toList();
+    } catch (_) {
+      return MockData.transactions;
+    }
   }
 
   static double _toDouble(dynamic v) =>

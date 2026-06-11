@@ -103,9 +103,8 @@ class FrappeClient {
       final result = _handleResponse(response);
       _connected = true;
       return result;
-    } catch (e) {
-      // On web, CORS blocks cross-origin requests — return empty data silently
-      // so the UI shows zeros instead of error messages.
+    } on http.ClientException catch (e) {
+      // On web, CORS blocks cross-origin requests — return empty data silently.
       if (kIsWeb) {
         debugPrint('[Frappe] Web CORS/network error — returning empty: $e');
         return {'data': [], 'message': null};

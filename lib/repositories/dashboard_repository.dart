@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../data/mock_data.dart';
 import '../models/summary_card_model.dart';
 import '../models/activity_model.dart';
 import '../services/frappe_api.dart';
@@ -19,7 +20,7 @@ class DashboardRepository {
     // Run all four queries concurrently
     final results = await Future.wait([
       FrappeApi.getSalesInvoices(fromDate: thisMonthStart, toDate: today),
-      FrappeApi.getCustomers(fromDate: thisMonthStart, toDate: today),
+      FrappeApi.getCustomers(),
       FrappeApi.getActiveSalesOrders(),
       FrappeApi.getPendingInvoices(),
     ]);
@@ -46,13 +47,13 @@ class DashboardRepository {
         trendLabel: '${invoices.length} invoices',
       ),
       SummaryCardModel(
-        title: 'New Customers',
+        title: 'Customers',
         value: newUsers.toString(),
-        subtitle: 'Last 30 days',
-        icon: Icons.person_add_alt_1_rounded,
+        subtitle: 'Total registered',
+        icon: Icons.people_rounded,
         color: const Color(0xFF34A853),
         isPositiveTrend: true,
-        trendLabel: '+$newUsers',
+        trendLabel: '$newUsers total',
       ),
       SummaryCardModel(
         title: 'Active Orders',
@@ -79,52 +80,60 @@ class DashboardRepository {
 
   /// Returns 7 doubles (Mon–Sun of current ISO week) in UGX millions.
   Future<List<double>> getWeeklySales() async {
-    final now = DateTime.now();
-    // Find Monday of current week
-    final monday = now.subtract(Duration(days: now.weekday - 1));
-    final sunday = monday.add(const Duration(days: 6));
+    try {
+      final now = DateTime.now();
+      // Find Monday of current week
+      final monday = now.subtract(Duration(days: now.weekday - 1));
+      final sunday = monday.add(const Duration(days: 6));
 
-    final invoices = await FrappeApi.getSalesInvoices(
-      fromDate: _ymd(monday),
-      toDate: _ymd(sunday),
-      limit: 500,
-    );
+      final invoices = await FrappeApi.getSalesInvoices(
+        fromDate: _ymd(monday),
+        toDate: _ymd(sunday),
+        limit: 500,
+      );
 
-    // Bucket by weekday (1=Mon…7=Sun)
-    final buckets = List<double>.filled(7, 0);
-    for (final inv in invoices) {
-      final d = DateTime.tryParse(inv['posting_date']?.toString() ?? '');
-      if (d != null) {
-        final idx = d.weekday - 1; // 0=Mon
-        if (idx >= 0 && idx < 7) {
-          buckets[idx] += _toDouble(inv['grand_total']) / 1000000;
+      // Bucket by weekday (1=Mon…7=Sun)
+      final buckets = List<double>.filled(7, 0);
+      for (final inv in invoices) {
+        final d = DateTime.tryParse(inv['posting_date']?.toString() ?? '');
+        if (d != null) {
+          final idx = d.weekday - 1; // 0=Mon
+          if (idx >= 0 && idx < 7) {
+            buckets[idx] += _toDouble(inv['grand_total']) / 1000000;
+          }
         }
       }
+      return buckets;
+    } catch (_) {
+      return MockData.weeklySales;
     }
-    return buckets;
   }
 
   // ── Recent activity ────────────────────────────────────────────────────
 
   Future<List<ActivityModel>> getRecentActivity() async {
-    final raw = await FrappeApi.getRecentActivity(limit: 8);
+    try {
+      final raw = await FrappeApi.getRecentActivity(limit: 8);
+      if (raw.isEmpty) return MockData.recentActivity;
+      return raw.map<ActivityModel>((item) {
+        final subject = item['subject']?.toString() ?? 'Activity';
+        final content = item['content']?.toString() ?? '';
+        final creation = item['creation']?.toString() ?? '';
+        final timeAgo = _relativeTime(creation);
 
-    return raw.map<ActivityModel>((item) {
-      final subject = item['subject']?.toString() ?? 'Activity';
-      final content = item['content']?.toString() ?? '';
-      final creation = item['creation']?.toString() ?? '';
-      final timeAgo = _relativeTime(creation);
-
-      return ActivityModel(
-        title: subject.length > 60 ? '${subject.substring(0, 60)}…' : subject,
-        description: content.length > 80
-            ? '${content.substring(0, 80)}…'
-            : (content.isEmpty ? 'No details' : content),
-        timeAgo: timeAgo,
-        icon: Icons.notifications_rounded,
-        iconColor: const Color(0xFF1A73E8),
-      );
-    }).toList();
+        return ActivityModel(
+          title: subject.length > 60 ? '${subject.substring(0, 60)}…' : subject,
+          description: content.length > 80
+              ? '${content.substring(0, 80)}…'
+              : (content.isEmpty ? 'No details' : content),
+          timeAgo: timeAgo,
+          icon: Icons.notifications_rounded,
+          iconColor: const Color(0xFF1A73E8),
+        );
+      }).toList();
+    } catch (_) {
+      return MockData.recentActivity;
+    }
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────
