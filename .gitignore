@@ -1,3 +1,6 @@
+# Chrome dev profile (flutter web debug)
+.chrome-dev/
+
 # Flutter/Dart
 .dart_tool/
 .flutter-plugins

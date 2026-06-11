@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/transaction_model.dart';
 import '../repositories/transactions_repository.dart';
@@ -31,7 +32,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       final data = await _repo.getTransactions(limit: 100);
       if (mounted) setState(() => _liveData = data);
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted && !kIsWeb) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }

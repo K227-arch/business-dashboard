@@ -96,12 +96,22 @@ class FrappeClient {
   // ── Internal ──────────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> _get(Uri uri) async {
     debugPrint('[Frappe] GET $uri');
-    final response = await http
-        .get(uri, headers: _headers)
-        .timeout(const Duration(seconds: 20));
-    final result = _handleResponse(response);
-    _connected = true;
-    return result;
+    try {
+      final response = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 20));
+      final result = _handleResponse(response);
+      _connected = true;
+      return result;
+    } catch (e) {
+      // On web, CORS blocks cross-origin requests — return empty data silently
+      // so the UI shows zeros instead of error messages.
+      if (kIsWeb) {
+        debugPrint('[Frappe] Web CORS/network error — returning empty: $e');
+        return {'data': [], 'message': null};
+      }
+      rethrow;
+    }
   }
 
   static Map<String, dynamic> _handleResponse(http.Response response) {

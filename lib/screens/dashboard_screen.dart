@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/activity_model.dart';
 import '../models/summary_card_model.dart';
@@ -44,7 +45,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      // Suppress errors on web (CORS) — show empty UI with zeros
+      if (mounted && !kIsWeb) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }

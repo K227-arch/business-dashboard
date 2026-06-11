@@ -1,4 +1,5 @@
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/sale_item_model.dart';
 import '../repositories/sales_repository.dart';
@@ -42,7 +43,7 @@ class _SalesScreenState extends State<SalesScreen> {
       final data = await _repo.getSalesSummary(period: _period, date: _date);
       if (mounted) setState(() => _liveSummary = data);
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted && !kIsWeb) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -83,7 +84,7 @@ class _SalesScreenState extends State<SalesScreen> {
             isLoading: _loading,
             onRefresh: _load,
           ),
-          if (_error != null)
+          if (_error != null && !kIsWeb)
             Material(
               color: const Color(0xFFEA4335).withValues(alpha: 0.1),
               child: Padding(
@@ -495,7 +496,7 @@ class _SalesBarChart extends StatelessWidget {
     final labelColor = scheme.onSurface.withValues(alpha: 0.5);
     final gridColor = scheme.onSurface.withValues(alpha: 0.08);
 
-    final maxY = data.map((e) => e.amount).reduce((a, b) => a > b ? a : b);
+    final maxY = data.isEmpty ? 0 : data.map((e) => e.amount).reduce((a, b) => a > b ? a : b);
     final yMax = maxY == 0 ? 8.0 : (maxY * 1.2).ceilToDouble();
 
     return SizedBox(
