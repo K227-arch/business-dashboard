@@ -1,5 +1,6 @@
 # Chrome dev profile (flutter web debug)
-.chrome-dev/
+.chrome-dev*/
+nul
 
 # Flutter/Dart
 .dart_tool/
