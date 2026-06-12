@@ -85,6 +85,8 @@ class _SalesChartState extends State<SalesChart> {
                       const SizedBox(height: 2),
                       Text(
                         label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: scheme.onSurface.withValues(alpha: 0.45),
                             ),
@@ -116,12 +118,12 @@ class _SalesChartState extends State<SalesChart> {
             // ── Chart or empty state ─────────────────────────────────────
             if (_loading)
               const SizedBox(
-                height: 160,
+                height: 140,
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (maxVal == 0)
               SizedBox(
-                height: 160,
+                height: 140,
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -142,7 +144,7 @@ class _SalesChartState extends State<SalesChart> {
               )
             else
               SizedBox(
-                height: 160,
+                height: 140,
                 child: BarChart(
                   BarChartData(
                     maxY: maxY,
@@ -230,7 +232,7 @@ class _SalesChartState extends State<SalesChart> {
                             color: isTouched
                                 ? primary
                                 : primary.withValues(alpha: 0.65),
-                            width: 22,
+                            width: 16,
                             borderRadius: const BorderRadius.vertical(
                                 top: Radius.circular(6)),
                             backDrawRodData: BackgroundBarChartRodData(

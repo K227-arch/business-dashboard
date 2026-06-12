@@ -94,12 +94,15 @@ class TransactionTile extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  '$amountPrefix UGX ${_formatAmount(transaction.amount)}',
-                  style: TextStyle(
-                    color: amountColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '$amountPrefix UGX ${_formatAmount(transaction.amount)}',
+                    style: TextStyle(
+                      color: amountColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 6),

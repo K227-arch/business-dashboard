@@ -342,11 +342,13 @@ class _MiniStatCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: scheme.onSurface.withValues(alpha: 0.5),
                         )),
-                Text(value,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: color,
-                        )),
+                FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(value,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: color,
+                            ))),
               ],
             ),
           ],

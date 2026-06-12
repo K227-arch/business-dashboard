@@ -42,6 +42,8 @@ class ActivityTile extends StatelessWidget {
                   children: [
                     Text(
                       activity.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: scheme.onSurface,
@@ -50,6 +52,8 @@ class ActivityTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       activity.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: scheme.onSurface.withValues(alpha: 0.55),
                           ),

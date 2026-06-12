@@ -69,7 +69,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               backgroundColor: bgColor,
               surfaceTintColor: Colors.transparent,
               automaticallyImplyLeading: false,
-              toolbarHeight: 72,
+              toolbarHeight: 64,
               title: Row(
                 children: [
                   Expanded(
@@ -146,7 +146,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
             // ── Body ─────────────────────────────────────────────────────
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   const SizedBox(height: 4),
@@ -172,7 +172,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 crossAxisCount: 2,
                                 mainAxisSpacing: 12,
                                 crossAxisSpacing: 12,
-                                childAspectRatio: 1.05,
+                                childAspectRatio: 0.9,
                               ),
                               itemBuilder: (_, i) =>
                                   SummaryCard(data: _cards[i]),
@@ -365,7 +365,7 @@ class _SkeletonGrid extends StatelessWidget {
         crossAxisCount: 2,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
-        childAspectRatio: 1.05,
+        childAspectRatio: 0.9,
       ),
       itemBuilder: (_, __) => const _Skeleton(height: double.infinity),
     );

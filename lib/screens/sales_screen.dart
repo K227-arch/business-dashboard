@@ -224,82 +224,78 @@ class _SalesHeader extends StatelessWidget {
       child: Container(
         width: double.infinity,
         color: bg,
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Stack(
-          alignment: Alignment.center,
+        padding: const EdgeInsets.fromLTRB(4, 10, 4, 10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // ── Centered column: title + subtitle + date row ──────────
-            Column(
-              mainAxisSize: MainAxisSize.min,
+            // ── Top row: title + actions ─────────────────────────────
+            Row(
               children: [
-                const Text(
-                  'Sales',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Sales',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold)),
+                      SizedBox(height: 2),
+                      Text('Techwise Solutions',
+                          style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Techwise Solutions',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                IconButton(
+                  icon: isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.refresh_rounded,
+                          color: Colors.white, size: 20),
+                  onPressed: isLoading ? null : onRefresh,
                 ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left,
-                          color: Colors.white, size: 28),
-                      onPressed: onPrev,
-                    ),
-                    Text(
-                      dateLabel,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right,
-                          color: Colors.white, size: 28),
-                      onPressed: onNext,
-                    ),
-                  ],
+                IconButton(
+                  icon: const Icon(Icons.tune_rounded,
+                      color: Colors.white, size: 22),
+                  tooltip: 'Select period: $_periodLabel',
+                  onPressed: onFilterTap,
                 ),
               ],
             ),
-
-            // ── Filter icon: top-right, independent ───────────────────
-            Positioned(
-              top: 0,
-              right: 8,
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: isLoading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.refresh_rounded,
-                            color: Colors.white, size: 20),
-                    onPressed: isLoading ? null : onRefresh,
+            const SizedBox(height: 4),
+            // ── Date row ─────────────────────────────────────────────
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left,
+                      color: Colors.white, size: 28),
+                  onPressed: onPrev,
+                ),
+                Flexible(
+                  child: Text(
+                    dateLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.tune_rounded,
-                        color: Colors.white, size: 22),
-                    tooltip: 'Select period: $_periodLabel',
-                    onPressed: onFilterTap,
-                  ),
-                ],
-              ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right,
+                      color: Colors.white, size: 28),
+                  onPressed: onNext,
+                ),
+              ],
             ),
           ],
         ),
@@ -415,46 +411,45 @@ class _RingStat extends StatelessWidget {
 
     return Column(
       children: [
-        // Ring
+        // Ring — responsive size
         SizedBox(
-          width: 80,
-          height: 80,
+          width: 72,
+          height: 72,
           child: Stack(
             alignment: Alignment.center,
             children: [
               SizedBox(
-                width: 80,
-                height: 80,
+                width: 72,
+                height: 72,
                 child: CircularProgressIndicator(
                   value: 0.72,
-                  strokeWidth: 5,
+                  strokeWidth: 4,
                   backgroundColor: ringColor.withValues(alpha: 0.15),
                   valueColor: AlwaysStoppedAnimation<Color>(ringColor),
                   strokeCap: StrokeCap.round,
                 ),
               ),
-              // Dot at top
               Positioned(
-                top: 4,
+                top: 3,
                 child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: ringColor,
-                    shape: BoxShape.circle,
-                  ),
+                  width: 7, height: 7,
+                  decoration: BoxDecoration(color: ringColor, shape: BoxShape.circle),
                 ),
               ),
-              // Centre value
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  value,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: value.length > 6 ? 9 : 12,
-                    fontWeight: FontWeight.bold,
-                    color: scheme.onSurface,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    value,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: value.length > 8 ? 7 : value.length > 5 ? 9 : 11,
+                      fontWeight: FontWeight.bold,
+                      color: scheme.onSurface,
+                    ),
                   ),
                 ),
               ),
@@ -472,7 +467,7 @@ class _RingStat extends StatelessWidget {
         Text(
           change,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: FontWeight.w600,
             color: changeColor,
           ),
@@ -675,12 +670,15 @@ class _ItemsSection extends StatelessWidget {
                         ),
                       ),
                       // Amount
-                      Text(
-                        _fmt(item.totalAmount),
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: scheme.onSurface,
-                            ),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          _fmt(item.totalAmount),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: scheme.onSurface,
+                              ),
+                        ),
                       ),
                     ],
                   ),
