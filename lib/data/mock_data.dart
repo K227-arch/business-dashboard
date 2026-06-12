@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/summary_card_model.dart';
 import '../models/activity_model.dart';
+import '../models/purchase_model.dart';
 import '../models/transaction_model.dart';
 import '../models/sale_item_model.dart';
 
@@ -199,6 +200,75 @@ class MockData {
       date: 'Jun 3, 2026',
       status: TransactionStatus.completed,
       type: TransactionType.debit,
+    ),
+  ];
+
+  // ── Purchases ─────────────────────────────────────────────────────────────
+
+  static const List<PurchaseModel> purchases = [
+    PurchaseModel(
+      id: 'PUR-001',
+      supplierName: 'Uganda Breweries Ltd',
+      description: 'Stock order — beverages & spirits',
+      total: 8400000,
+      date: 'Jun 11, 2026',
+      status: TransactionStatus.completed,
+    ),
+    PurchaseModel(
+      id: 'PUR-002',
+      supplierName: 'Royal Vendors Ltd',
+      description: 'Office supplies & stationery',
+      total: 320000,
+      date: 'Jun 10, 2026',
+      status: TransactionStatus.completed,
+    ),
+    PurchaseModel(
+      id: 'PUR-003',
+      supplierName: 'Fresh Foods Suppliers',
+      description: 'Perishable goods — weekly order',
+      total: 2150000,
+      date: 'Jun 9, 2026',
+      status: TransactionStatus.pending,
+    ),
+    PurchaseModel(
+      id: 'PUR-004',
+      supplierName: 'Techware Solutions',
+      description: 'IT equipment — 10 workstations',
+      total: 12500000,
+      date: 'Jun 8, 2026',
+      status: TransactionStatus.completed,
+    ),
+    PurchaseModel(
+      id: 'PUR-005',
+      supplierName: 'Jinja Logistics',
+      description: 'Freight & delivery charges — May',
+      total: 560000,
+      date: 'Jun 7, 2026',
+      status: TransactionStatus.completed,
+    ),
+    PurchaseModel(
+      id: 'PUR-006',
+      supplierName: 'Green Gardens Produce',
+      description: 'Fresh vegetables & herbs',
+      total: 890000,
+      date: 'Jun 6, 2026',
+      status: TransactionStatus.failed,
+    ),
+    PurchaseModel(
+      id: 'PUR-007',
+      supplierName: 'Prime Packaging Ltd',
+      description: 'Custom branded packaging',
+      total: 1450000,
+      date: 'Jun 5, 2026',
+      status: TransactionStatus.pending,
+    ),
+    PurchaseModel(
+      id: 'PUR-008',
+      supplierName: 'Nile Water Works',
+      description: 'Water bottles — bulk order',
+      total: 600000,
+      date: 'Jun 4, 2026',
+      status: TransactionStatus.completed,
     ),
   ];
 

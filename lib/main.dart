@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
+import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
-import 'screens/dashboard_screen.dart';
-import 'screens/sales_screen.dart';
-import 'screens/transactions_screen.dart';
+import 'screens/credentials_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/main_shell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const BusinessDashboardApp());
 }
 
-// ── Shared seed color ──────────────────────────────────────────────────────
 const Color _seedColor = Color(0xFF1A73E8);
 
-// ── Light theme ────────────────────────────────────────────────────────────
 final ThemeData lightTheme = ThemeData(
   colorScheme: ColorScheme.fromSeed(
     seedColor: _seedColor,
@@ -48,7 +47,6 @@ final ThemeData lightTheme = ThemeData(
   ),
 );
 
-// ── Dark theme ─────────────────────────────────────────────────────────────
 final ThemeData darkTheme = ThemeData(
   colorScheme: ColorScheme.fromSeed(
     seedColor: _seedColor,
@@ -84,7 +82,6 @@ final ThemeData darkTheme = ThemeData(
   ),
 );
 
-// ── App root ───────────────────────────────────────────────────────────────
 class BusinessDashboardApp extends StatefulWidget {
   const BusinessDashboardApp({super.key});
 
@@ -94,10 +91,12 @@ class BusinessDashboardApp extends StatefulWidget {
 
 class _BusinessDashboardAppState extends State<BusinessDashboardApp> {
   final ThemeProvider _themeProvider = ThemeProvider();
+  final AuthProvider _authProvider = AuthProvider();
 
   @override
   void dispose() {
     _themeProvider.dispose();
+    _authProvider.dispose();
     super.dispose();
   }
 
@@ -112,63 +111,29 @@ class _BusinessDashboardAppState extends State<BusinessDashboardApp> {
           theme: lightTheme,
           darkTheme: darkTheme,
           themeMode: _themeProvider.mode,
-          home: MainShell(themeProvider: _themeProvider),
+          home: _buildHome(),
         );
       },
     );
   }
-}
 
-// ── Shell with BottomNavigationBar ─────────────────────────────────────────
-class MainShell extends StatefulWidget {
-  final ThemeProvider themeProvider;
-  const MainShell({super.key, required this.themeProvider});
-
-  @override
-  State<MainShell> createState() => _MainShellState();
-}
-
-class _MainShellState extends State<MainShell> {
-  int _selectedIndex = 0;
-
-  void _onItemTapped(int index) => setState(() => _selectedIndex = index);
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = widget.themeProvider.isDark;
-    final scheme = Theme.of(context).colorScheme;
-
-    final List<Widget> screens = [
-      DashboardScreen(themeProvider: widget.themeProvider),
-      const SalesScreen(),
-      const TransactionsScreen(),
-    ];
-
-    return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: screens),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: _onItemTapped,
-        backgroundColor: isDark ? const Color(0xFF1E2128) : Colors.white,
-        indicatorColor: scheme.primaryContainer,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
-            label: 'Dashboard',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart),
-            label: 'Sales',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
-            label: 'Transactions',
-          ),
-        ],
-      ),
+  Widget _buildHome() {
+    return ListenableBuilder(
+      listenable: _authProvider,
+      builder: (context, _) {
+        switch (_authProvider.status) {
+          case AuthStatus.uninitialized:
+          case AuthStatus.needsUrl:
+            return LoginScreen(auth: _authProvider);
+          case AuthStatus.needsLogin:
+            return CredentialsScreen(auth: _authProvider);
+          case AuthStatus.authenticated:
+            return MainShell(
+              authProvider: _authProvider,
+              themeProvider: _themeProvider,
+            );
+        }
+      },
     );
   }
 }

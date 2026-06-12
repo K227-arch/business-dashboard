@@ -2,39 +2,87 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-/// Low-level Frappe / ERPNext REST client — no authentication required.
-///
-/// Set [baseUrl] to your ERPNext instance before using.
-/// The app connects automatically on startup; no login screen needed.
 class FrappeClient {
   FrappeClient._();
 
-  // ── Base URL ───────────────────────────────────────────────────────────
-  static const String baseUrl = 'https://najod.k.frappe.cloud';
+  static String baseUrl = '';
 
-  // ── API credentials ────────────────────────────────────────────────────
-  // Regenerate: Login → My Settings → API Access → Generate Keys
-  static const String _apiKey    = '0e961d779b3ae8e';
-  static const String _apiSecret = 'de7aae198bb57bf';
-
-  /// True once a successful request has been made.
+  static String? _sessionCookie;
   static bool _connected = false;
   static bool get isConnected => _connected;
 
-  // ── Auth headers ──────────────────────────────────────────────────────
-  static const Map<String, String> _headers = {
-    'Authorization': 'token $_apiKey:$_apiSecret',
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
+  static void setBaseUrl(String url) {
+    baseUrl = url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+    _connected = false;
+    _sessionCookie = null;
+  }
 
-  // ── Connectivity check ────────────────────────────────────────────────
-  /// Ping the Frappe instance.
-  /// On web, CORS blocks cross-origin requests from localhost so we
-  /// optimistically mark as connected and let actual API calls confirm.
+  static Future<String> login({
+    required String usr,
+    required String pwd,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/method/login');
+    final response = await http
+        .post(
+          uri,
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json',
+          },
+          body: {'usr': usr, 'pwd': pwd},
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode != 200) {
+      try {
+        final err = jsonDecode(response.body) as Map;
+        throw FrappeException(
+          err['message']?.toString() ?? 'Login failed',
+          statusCode: response.statusCode,
+        );
+      } on FrappeException {
+        rethrow;
+      } catch (_) {
+        throw FrappeException('Login failed (HTTP ${response.statusCode})',
+            statusCode: response.statusCode);
+      }
+    }
+
+    final setCookie = response.headers['set-cookie'];
+    if (setCookie != null) {
+      _sessionCookie = setCookie.split(';').first;
+    }
+
+    _connected = true;
+    final body = jsonDecode(response.body) as Map;
+    return body['message']?.toString() ?? 'User';
+  }
+
+  static Map<String, String> get _headers {
+    final h = <String, String>{
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    if (_sessionCookie != null) {
+      h['Cookie'] = _sessionCookie!;
+      h['X-Frappe-CSRF-Token'] = _csrfFromCookie();
+    }
+    return h;
+  }
+
+  static String _csrfFromCookie() {
+    if (_sessionCookie == null) return '';
+    for (final part in _sessionCookie!.split(';')) {
+      final trimmed = part.trim();
+      if (trimmed.startsWith('csrf_token=')) {
+        return trimmed.substring('csrf_token='.length);
+      }
+    }
+    return '';
+  }
+
   static Future<bool> ping() async {
     if (kIsWeb) {
-      // On web we can't ping due to CORS — assume connected.
       _connected = true;
       return true;
     }
@@ -51,9 +99,6 @@ class FrappeClient {
     }
   }
 
-  // ── HTTP helpers ───────────────────────────────────────────────────────
-
-  /// GET /api/resource/<doctype>?filters=...&fields=...
   static Future<Map<String, dynamic>> getList({
     required String doctype,
     List<String>? fields,
@@ -74,7 +119,6 @@ class FrappeClient {
     return _get(uri);
   }
 
-  /// GET /api/resource/<doctype>/<name>
   static Future<Map<String, dynamic>> getDoc({
     required String doctype,
     required String name,
@@ -83,7 +127,6 @@ class FrappeClient {
     return _get(uri);
   }
 
-  /// GET /api/method/<method>
   static Future<Map<String, dynamic>> callMethod({
     required String method,
     Map<String, String>? params,
@@ -93,7 +136,6 @@ class FrappeClient {
     return _get(uri);
   }
 
-  // ── Internal ──────────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> _get(Uri uri) async {
     debugPrint('[Frappe] GET $uri');
     try {
@@ -104,7 +146,6 @@ class FrappeClient {
       _connected = true;
       return result;
     } on http.ClientException catch (e) {
-      // On web, CORS blocks cross-origin requests — return empty data silently.
       if (kIsWeb) {
         debugPrint('[Frappe] Web CORS/network error — returning empty: $e');
         return {'data': [], 'message': null};
@@ -119,7 +160,8 @@ class FrappeClient {
     }
     try {
       final err = jsonDecode(response.body) as Map<String, dynamic>;
-      final msg = err['message'] ?? err['exception'] ?? 'HTTP ${response.statusCode}';
+      final msg =
+          err['message'] ?? err['exception'] ?? 'HTTP ${response.statusCode}';
       throw FrappeException(msg.toString(), statusCode: response.statusCode);
     } on FrappeException {
       rethrow;
@@ -130,7 +172,6 @@ class FrappeClient {
   }
 }
 
-/// Typed exception for Frappe API errors.
 class FrappeException implements Exception {
   final String message;
   final int? statusCode;

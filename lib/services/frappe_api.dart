@@ -128,6 +128,34 @@ class FrappeApi {
     return res['data'] as List<dynamic>? ?? [];
   }
 
+  // ── Purchases (Purchase Invoices) ─────────────────────────────────────
+
+  /// Purchase Invoices — maps to the Purchases screen.
+  /// ERPNext doctype: Purchase Invoice (submitted, not cancelled).
+  static Future<List<dynamic>> getPurchaseInvoices({
+    String? fromDate,
+    String? toDate,
+    int limit = 50,
+  }) async {
+    final filters = <dynamic>[
+      ['docstatus', '=', 1],
+    ];
+    if (fromDate != null) filters.add(['posting_date', '>=', fromDate]);
+    if (toDate != null) filters.add(['posting_date', '<=', toDate]);
+
+    final res = await FrappeClient.getList(
+      doctype: 'Purchase Invoice',
+      fields: [
+        'name', 'supplier', 'supplier_name', 'total',
+        'grand_total', 'posting_date', 'status', 'docstatus',
+      ],
+      filters: filters,
+      orderBy: 'posting_date desc',
+      limit: limit,
+    );
+    return res['data'] as List<dynamic>? ?? [];
+  }
+
   // ── Activity (Communications / Activity Log) ───────────────────────────
 
   /// Recent Communications — used as the activity feed.

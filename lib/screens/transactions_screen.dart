@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../models/purchase_model.dart';
 import '../models/transaction_model.dart';
-import '../repositories/transactions_repository.dart';
-import '../widgets/transaction_tile.dart';
+import '../repositories/purchases_repository.dart';
+import '../widgets/purchase_tile.dart';
 
-/// Screen 2: Transactions / Details Page
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
 
@@ -13,9 +13,9 @@ class TransactionsScreen extends StatefulWidget {
 }
 
 class _TransactionsScreenState extends State<TransactionsScreen> {
-  final _repo = const TransactionsRepository();
+  final _repo = const PurchasesRepository();
 
-  List<TransactionModel> _liveData = [];
+  List<PurchaseModel> _liveData = [];
   bool _loading = true;
   String? _error;
   TransactionStatus? _activeFilter;
@@ -29,7 +29,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final data = await _repo.getTransactions(limit: 100);
+      final data = await _repo.getPurchases(limit: 100);
       if (mounted) setState(() => _liveData = data);
     } catch (e) {
       if (mounted && !kIsWeb) setState(() => _error = e.toString());
@@ -38,20 +38,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
   }
 
-  List<TransactionModel> get _all => _liveData;
+  List<PurchaseModel> get _all => _liveData;
 
-  List<TransactionModel> get _filtered {
+  List<PurchaseModel> get _filtered {
     if (_activeFilter == null) return _all;
-    return _all.where((t) => t.status == _activeFilter).toList();
+    return _all.where((p) => p.status == _activeFilter).toList();
   }
 
-  double get _totalCredits => _all
-      .where((t) => t.type == TransactionType.credit)
-      .fold(0, (s, t) => s + t.amount);
-
-  double get _totalDebits => _all
-      .where((t) => t.type == TransactionType.debit)
-      .fold(0, (s, t) => s + t.amount);
+  double get _totalPurchases =>
+      _all.fold(0, (s, p) => s + p.total);
 
   @override
   Widget build(BuildContext context) {
@@ -63,13 +58,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            // ── App Bar ─────────────────────────────────────────────────
             SliverAppBar(
               pinned: true,
               backgroundColor: bgColor,
               surfaceTintColor: Colors.transparent,
               title: Text(
-                'Transactions',
+                'Purchases',
                 style: Theme.of(context)
                     .textTheme
                     .titleLarge
@@ -99,36 +93,24 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  // ── Error banner ────────────────────────────────────
                   if (_error != null)
                     _ErrorBanner(message: _error!, onRetry: _load),
 
-                  // ── Summary strip ───────────────────────────────────
                   const SizedBox(height: 4),
                   Row(
                     children: [
                       Expanded(
                         child: _MiniStatCard(
-                          label: 'Total In',
-                          value: _formatAmount(_totalCredits),
-                          color: const Color(0xFF34A853),
-                          icon: Icons.arrow_downward_rounded,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _MiniStatCard(
-                          label: 'Total Out',
-                          value: _formatAmount(_totalDebits),
-                          color: const Color(0xFFEA4335),
-                          icon: Icons.arrow_upward_rounded,
+                          label: 'Total Purchases',
+                          value: _formatAmount(_totalPurchases),
+                          color: const Color(0xFFFF8C42),
+                          icon: Icons.shopping_cart_rounded,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
 
-                  // ── Filter chips ────────────────────────────────────
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -141,7 +123,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         ),
                         const SizedBox(width: 8),
                         _FilterChip(
-                          label: 'Completed',
+                          label: 'Paid',
                           isSelected:
                               _activeFilter == TransactionStatus.completed,
                           onTap: () => setState(() =>
@@ -159,7 +141,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         ),
                         const SizedBox(width: 8),
                         _FilterChip(
-                          label: 'Failed',
+                          label: 'Cancelled',
                           isSelected:
                               _activeFilter == TransactionStatus.failed,
                           onTap: () => setState(() =>
@@ -171,18 +153,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // ── Count ───────────────────────────────────────────
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Text(
-                      '${_filtered.length} transaction${_filtered.length == 1 ? '' : 's'}',
+                      '${_filtered.length} purchase${_filtered.length == 1 ? '' : 's'}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: scheme.onSurface.withValues(alpha: 0.45),
                           ),
                     ),
                   ),
 
-                  // ── List ────────────────────────────────────────────
                   if (_loading)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 40),
@@ -193,14 +173,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 40),
                       child: Center(
                         child: Text(
-                          'No transactions found.',
+                          'No purchases found.',
                           style: TextStyle(
                               color: scheme.onSurface.withValues(alpha: 0.4)),
                         ),
                       ),
                     )
                   else
-                    ..._filtered.map((t) => TransactionTile(transaction: t)),
+                    ..._filtered.map((p) => PurchaseTile(purchase: p)),
 
                   const SizedBox(height: 24),
                 ]),
@@ -232,9 +212,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     ?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             _sheetOption('All', null),
-            _sheetOption('Completed', TransactionStatus.completed),
+            _sheetOption('Paid', TransactionStatus.completed),
             _sheetOption('Pending', TransactionStatus.pending),
-            _sheetOption('Failed', TransactionStatus.failed),
+            _sheetOption('Cancelled', TransactionStatus.failed),
             const SizedBox(height: 8),
           ],
         ),
@@ -247,7 +227,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     return ListTile(
       leading: Icon(
         isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-        color: Theme.of(context).colorScheme.primary,
+        color: const Color(0xFFFF8C42),
       ),
       title: Text(label),
       onTap: () {
@@ -265,7 +245,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 }
 
-// ── Error banner ─────────────────────────────────────────────────────────────
 class _ErrorBanner extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
@@ -305,7 +284,6 @@ class _ErrorBanner extends StatelessWidget {
   }
 }
 
-// ── Mini stat card ────────────────────────────────────────────────────────────
 class _MiniStatCard extends StatelessWidget {
   final String label;
   final String value;
@@ -358,7 +336,6 @@ class _MiniStatCard extends StatelessWidget {
   }
 }
 
-// ── Filter chip ───────────────────────────────────────────────────────────────
 class _FilterChip extends StatelessWidget {
   final String label;
   final bool isSelected;
