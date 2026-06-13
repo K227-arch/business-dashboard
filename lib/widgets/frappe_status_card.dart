@@ -353,7 +353,7 @@ class _FrappeStatusCardState extends State<FrappeStatusCard> {
               isDark: Theme.of(context).brightness == Brightness.dark,
             ),
             _Pill(
-              label: '🌐 najod.k.frappe.cloud',
+              label: '🌐 ${Uri.parse(FrappeClient.baseUrl).host}',
               color: const Color(0xFF1A73E8),
               isDark: Theme.of(context).brightness == Brightness.dark,
             ),

@@ -1,21 +1,57 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/frappe_client.dart';
 import '../services/google_auth_service.dart';
 
 enum AuthStatus { uninitialized, needsUrl, needsLogin, authenticated }
 
 class AuthProvider extends ChangeNotifier {
-  AuthStatus _status = AuthStatus.needsUrl;
+  AuthStatus _status = AuthStatus.uninitialized;
   String _baseUrl = '';
   String _userName = '';
   String? _error;
+  String _lastEmail = '';
 
   AuthStatus get status => _status;
   String get baseUrl => _baseUrl;
   String get userName => _userName;
   String? get error => _error;
+  String get lastEmail => _lastEmail;
 
   bool get isAuthenticated => _status == AuthStatus.authenticated;
+
+  Future<void> tryRestoreSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedUrl = prefs.getString('baseUrl');
+    final savedCookie = prefs.getString('sessionCookie');
+    final savedUser = prefs.getString('userName');
+    final savedEmail = prefs.getString('lastEmail') ?? '';
+
+    _lastEmail = savedEmail;
+
+    if (savedUrl != null && savedCookie != null && savedCookie.isNotEmpty) {
+      FrappeClient.restoreSession(savedCookie, savedUrl);
+      _baseUrl = savedUrl;
+      _userName = savedUser ?? '';
+
+      final ok = await FrappeClient.ping();
+      if (ok) {
+        _status = AuthStatus.authenticated;
+        _error = null;
+        notifyListeners();
+        return;
+      }
+    }
+
+    if (savedUrl != null) {
+      FrappeClient.setBaseUrl(savedUrl);
+      _baseUrl = savedUrl;
+      _status = AuthStatus.needsLogin;
+    } else {
+      _status = AuthStatus.needsUrl;
+    }
+    notifyListeners();
+  }
 
   Future<void> setBaseUrl(String url) async {
     _error = null;
@@ -34,6 +70,8 @@ class AuthProvider extends ChangeNotifier {
     FrappeClient.setBaseUrl(trimmed);
     _baseUrl = trimmed;
     _status = AuthStatus.needsLogin;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('baseUrl', trimmed);
     notifyListeners();
   }
 
@@ -45,8 +83,17 @@ class AuthProvider extends ChangeNotifier {
     try {
       final name = await FrappeClient.login(usr: usr, pwd: pwd);
       _userName = name;
+      _lastEmail = usr;
       _status = AuthStatus.authenticated;
       _error = null;
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userName', name);
+      await prefs.setString('lastEmail', usr);
+      final cookie = FrappeClient.sessionCookie;
+      if (cookie != null) {
+        await prefs.setString('sessionCookie', cookie);
+      }
     } on FrappeException catch (e) {
       _error = e.message;
       _status = AuthStatus.needsLogin;
@@ -88,10 +135,14 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void logout() {
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('sessionCookie');
+    await prefs.remove('userName');
     _status = AuthStatus.needsUrl;
     _baseUrl = '';
     _userName = '';
+    _lastEmail = '';
     _error = null;
     notifyListeners();
   }

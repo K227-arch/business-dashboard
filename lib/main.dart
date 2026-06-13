@@ -94,6 +94,12 @@ class _BusinessDashboardAppState extends State<BusinessDashboardApp> {
   final AuthProvider _authProvider = AuthProvider();
 
   @override
+  void initState() {
+    super.initState();
+    _authProvider.tryRestoreSession();
+  }
+
+  @override
   void dispose() {
     _themeProvider.dispose();
     _authProvider.dispose();
@@ -121,6 +127,11 @@ class _BusinessDashboardAppState extends State<BusinessDashboardApp> {
     return ListenableBuilder(
       listenable: _authProvider,
       builder: (context, _) {
+        if (_authProvider.status == AuthStatus.uninitialized) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
         switch (_authProvider.status) {
           case AuthStatus.uninitialized:
           case AuthStatus.needsUrl:

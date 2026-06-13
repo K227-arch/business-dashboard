@@ -17,6 +17,14 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
   bool _obscurePwd = true;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.auth.lastEmail.isNotEmpty) {
+      _usrController.text = widget.auth.lastEmail;
+    }
+  }
+
+  @override
   void dispose() {
     _usrController.dispose();
     _pwdController.dispose();
@@ -64,16 +72,6 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
                           fontWeight: FontWeight.bold,
                           color: scheme.onSurface,
                         ),
-                  ),
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () => widget.auth.setBaseUrl(''),
-                    child: Text(
-                      widget.auth.baseUrl,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: scheme.primary,
-                          ),
-                    ),
                   ),
                   const SizedBox(height: 32),
                   TextFormField(

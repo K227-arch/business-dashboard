@@ -1,9 +1,7 @@
-import '../data/mock_data.dart';
 import '../models/sale_item_model.dart';
 import '../services/frappe_api.dart';
 
-/// Fetches Sales Invoice data for [SalesScreen].
-/// Falls back to mock data when the Frappe API fails.
+/// Fetches Sales Invoice data for [SalesScreen] from ERPNext.
 class SalesRepository {
   const SalesRepository();
 
@@ -11,11 +9,7 @@ class SalesRepository {
     required SalesPeriod period,
     required DateTime date,
   }) async {
-    try {
-      return await _fetchLive(period, date);
-    } catch (_) {
-      return MockData.salesSummaries[period] ?? MockData.salesSummaries[SalesPeriod.today]!;
-    }
+    return _fetchLive(period, date);
   }
 
   Future<SalesSummary> _fetchLive(SalesPeriod period, DateTime date) async {

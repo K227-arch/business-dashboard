@@ -1,4 +1,3 @@
-import '../data/mock_data.dart';
 import '../models/transaction_model.dart';
 import '../services/frappe_api.dart';
 
@@ -18,7 +17,6 @@ class TransactionsRepository {
         limit: limit,
       );
 
-      if (raw.isEmpty) return MockData.transactions;
       return raw.map<TransactionModel>((item) {
         final paymentType = item['payment_type']?.toString() ?? 'Receive';
         final isReceive = paymentType == 'Receive';
@@ -37,7 +35,7 @@ class TransactionsRepository {
         );
       }).toList();
     } catch (_) {
-      return MockData.transactions;
+      return [];
     }
   }
 

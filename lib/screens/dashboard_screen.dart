@@ -11,7 +11,14 @@ import '../widgets/summary_card.dart';
 /// Screen 1: Main Dashboard — all data loaded live from Frappe ERPNext.
 class DashboardScreen extends StatefulWidget {
   final ThemeProvider themeProvider;
-  const DashboardScreen({super.key, required this.themeProvider});
+  final String userName;
+  final String baseUrl;
+  const DashboardScreen({
+    super.key,
+    required this.themeProvider,
+    required this.userName,
+    required this.baseUrl,
+  });
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -78,7 +85,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Hello, Admin 👋',
+                          'Hello, ${widget.userName} 👋',
                           style: Theme.of(context)
                               .textTheme
                               .titleLarge
@@ -89,7 +96,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Techwise Solutions',
+                          Uri.parse(widget.baseUrl).host,
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall

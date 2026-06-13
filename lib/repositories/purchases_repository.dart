@@ -1,4 +1,3 @@
-import '../data/mock_data.dart';
 import '../models/purchase_model.dart';
 import '../models/transaction_model.dart';
 import '../services/frappe_api.dart';
@@ -18,7 +17,6 @@ class PurchasesRepository {
         limit: limit,
       );
 
-      if (raw.isEmpty) return MockData.purchases;
       return raw.map<PurchaseModel>((item) {
         final statusStr = item['status']?.toString() ?? '';
         return PurchaseModel(
@@ -33,7 +31,7 @@ class PurchasesRepository {
         );
       }).toList();
     } catch (_) {
-      return MockData.purchases;
+      return [];
     }
   }
 

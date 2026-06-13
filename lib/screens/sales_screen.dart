@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import '../models/sale_item_model.dart';
 import '../repositories/sales_repository.dart';
 
-/// Screen 3: Sales Page
-/// Loads live data from ERPNext when configured; falls back to mock data.
+/// Screen 3: Sales Page — loads live data from ERPNext.
 class SalesScreen extends StatefulWidget {
-  const SalesScreen({super.key});
+  final String baseUrl;
+  const SalesScreen({super.key, required this.baseUrl});
 
   @override
   State<SalesScreen> createState() => _SalesScreenState();
@@ -83,6 +83,7 @@ class _SalesScreenState extends State<SalesScreen> {
             period: _period,
             isLoading: _loading,
             onRefresh: _load,
+            companyName: Uri.parse(widget.baseUrl).host,
           ),
           if (_error != null && !kIsWeb)
             Material(
@@ -195,6 +196,7 @@ class _SalesHeader extends StatelessWidget {
   final SalesPeriod period;
   final bool isLoading;
   final VoidCallback onRefresh;
+  final String companyName;
 
   const _SalesHeader({
     required this.dateLabel,
@@ -204,6 +206,7 @@ class _SalesHeader extends StatelessWidget {
     required this.period,
     required this.isLoading,
     required this.onRefresh,
+    required this.companyName,
   });
 
   String get _periodLabel {
@@ -232,18 +235,18 @@ class _SalesHeader extends StatelessWidget {
             Row(
               children: [
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Sales',
+                      const Text('Sales',
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: 18,
                               fontWeight: FontWeight.bold)),
-                      SizedBox(height: 2),
-                      Text('Techwise Solutions',
-                          style: TextStyle(color: Colors.white70, fontSize: 12)),
+                      const SizedBox(height: 2),
+                      Text(companyName,
+                          style: const TextStyle(color: Colors.white70, fontSize: 12)),
                     ],
                   ),
                 ),

@@ -10,6 +10,13 @@ class FrappeClient {
   static String? _sessionCookie;
   static bool _connected = false;
   static bool get isConnected => _connected;
+  static String? get sessionCookie => _sessionCookie;
+
+  static void restoreSession(String cookie, String url) {
+    baseUrl = url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+    _sessionCookie = cookie;
+    _connected = true;
+  }
 
   static void setBaseUrl(String url) {
     baseUrl = url.endsWith('/') ? url.substring(0, url.length - 1) : url;

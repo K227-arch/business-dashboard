@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../data/mock_data.dart';
 import '../models/summary_card_model.dart';
 import '../models/activity_model.dart';
 import '../services/frappe_api.dart';
@@ -41,11 +40,11 @@ class DashboardRepository {
       ordersLen    = orders.length;
       pendingLen   = pending.length;
     } catch (_) {
-      totalSales   = 8450000;
-      invoicesLen  = 36;
-      customersLen = 7;
-      ordersLen    = 12;
-      pendingLen   = 8;
+      totalSales   = 0;
+      invoicesLen  = 0;
+      customersLen = 0;
+      ordersLen    = 0;
+      pendingLen   = 0;
     }
 
     final newUsers   = customersLen;
@@ -121,7 +120,7 @@ class DashboardRepository {
       }
       return buckets;
     } catch (_) {
-      return MockData.weeklySales;
+      return List.filled(7, 0);
     }
   }
 
@@ -130,7 +129,6 @@ class DashboardRepository {
   Future<List<ActivityModel>> getRecentActivity() async {
     try {
       final raw = await FrappeApi.getRecentActivity(limit: 8);
-      if (raw.isEmpty) return MockData.recentActivity;
       return raw.map<ActivityModel>((item) {
         final subject = item['subject']?.toString() ?? 'Activity';
         final content = item['content']?.toString() ?? '';
@@ -148,7 +146,7 @@ class DashboardRepository {
         );
       }).toList();
     } catch (_) {
-      return MockData.recentActivity;
+      return [];
     }
   }
 

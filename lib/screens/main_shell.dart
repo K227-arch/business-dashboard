@@ -28,9 +28,18 @@ class _MainShellState extends State<MainShell> {
     final isDark = widget.themeProvider.isDark;
     final scheme = Theme.of(context).colorScheme;
 
+    final userName = widget.authProvider.userName.isNotEmpty
+        ? widget.authProvider.userName
+        : 'User';
+    final baseUrl = widget.authProvider.baseUrl;
+
     final List<Widget> screens = [
-      DashboardScreen(themeProvider: widget.themeProvider),
-      const SalesScreen(),
+      DashboardScreen(
+        themeProvider: widget.themeProvider,
+        userName: userName,
+        baseUrl: baseUrl,
+      ),
+      SalesScreen(baseUrl: baseUrl),
       const TransactionsScreen(),
     ];
 

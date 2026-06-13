@@ -15,6 +15,12 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
 
   @override
+  void initState() {
+    super.initState();
+    _urlController.text = 'https://clinicplus.techwise.africa/';
+  }
+
+  @override
   void dispose() {
     _urlController.dispose();
     super.dispose();
