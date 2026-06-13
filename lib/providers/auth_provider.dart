@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../services/frappe_client.dart';
+import '../services/google_auth_service.dart';
 
 enum AuthStatus { uninitialized, needsUrl, needsLogin, authenticated }
 
@@ -51,6 +52,37 @@ class AuthProvider extends ChangeNotifier {
       _status = AuthStatus.needsLogin;
     } catch (e) {
       _error = 'Connection failed: ${e.toString()}';
+      _status = AuthStatus.needsLogin;
+    }
+    notifyListeners();
+  }
+
+  Future<void> googleLogin() async {
+    _error = null;
+    notifyListeners();
+
+    try {
+      final name = await GoogleAuthService.signIn();
+      if (name != null) {
+        _userName = name;
+        _status = AuthStatus.authenticated;
+        _error = null;
+      }
+    } on FrappeException catch (e) {
+      _error = e.message;
+      _status = AuthStatus.needsLogin;
+    } catch (e) {
+      final msg = e.toString();
+      if (msg.contains('sign_in_failed') || msg.contains('network_error')) {
+        _error = 'Google sign-in failed. Check your connection and try again.';
+      } else if (msg.contains('No ID token')) {
+        _error = 'Could not get Google credentials. Try again.';
+      } else if (msg.contains('PlatformException')) {
+        _error =
+            'Google Sign-In is not configured. Use email/password instead.';
+      } else {
+        _error = 'Google sign-in failed: ${e.toString()}';
+      }
       _status = AuthStatus.needsLogin;
     }
     notifyListeners();

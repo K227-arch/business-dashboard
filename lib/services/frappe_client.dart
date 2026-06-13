@@ -22,16 +22,14 @@ class FrappeClient {
     required String pwd,
   }) async {
     final uri = Uri.parse('$baseUrl/api/method/login');
-    final response = await http
-        .post(
-          uri,
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json',
-          },
-          body: {'usr': usr, 'pwd': pwd},
-        )
-        .timeout(const Duration(seconds: 15));
+    final response = await http.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+      },
+      body: {'usr': usr, 'pwd': pwd},
+    ).timeout(const Duration(seconds: 15));
 
     if (response.statusCode != 200) {
       try {
@@ -134,6 +132,30 @@ class FrappeClient {
     final uri = Uri.parse('$baseUrl/api/method/$method')
         .replace(queryParameters: params);
     return _get(uri);
+  }
+
+  static Future<Map<String, dynamic>> callMethodPost({
+    required String method,
+    Map<String, dynamic>? body,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/method/$method');
+    debugPrint('[Frappe] POST $uri');
+    try {
+      final response = await http
+          .post(
+            uri,
+            headers: _headers,
+            body: body != null ? jsonEncode(body) : null,
+          )
+          .timeout(const Duration(seconds: 20));
+      return _handleResponse(response);
+    } on http.ClientException catch (e) {
+      if (kIsWeb) {
+        debugPrint('[Frappe] Web CORS/network error — $e');
+        return {'data': [], 'message': null};
+      }
+      rethrow;
+    }
   }
 
   static Future<Map<String, dynamic>> _get(Uri uri) async {

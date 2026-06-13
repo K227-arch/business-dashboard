@@ -59,7 +59,7 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Sign In',
+                    'Login',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: scheme.onSurface,
@@ -72,7 +72,6 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
                       widget.auth.baseUrl,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: scheme.primary,
-                            decoration: TextDecoration.underline,
                           ),
                     ),
                   ),
@@ -149,9 +148,50 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
                               height: 20,
                               child: CircularProgressIndicator(
                                   strokeWidth: 2, color: Colors.white))
-                          : const Text('Sign In',
+                          : const Text('Login',
                               style: TextStyle(
                                   fontSize: 16, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: scheme.outlineVariant)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text('or',
+                            style: TextStyle(
+                                color: scheme.onSurface.withValues(alpha: 0.5),
+                                fontSize: 13)),
+                      ),
+                      Expanded(child: Divider(color: scheme.outlineVariant)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: OutlinedButton.icon(
+                      onPressed: _loading
+                          ? null
+                          : () async {
+                              setState(() => _loading = true);
+                              await widget.auth.googleLogin();
+                              if (mounted) setState(() => _loading = false);
+                            },
+                      icon: Image.asset(
+                        'assets/google_logo.png',
+                        height: 20,
+                        width: 20,
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.login_rounded, size: 20),
+                      ),
+                      label: const Text('Sign in with Google',
+                          style: TextStyle(fontSize: 15)),
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
                   ),
                 ],
