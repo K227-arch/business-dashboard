@@ -156,6 +156,25 @@ class FrappeApi {
     return res['data'] as List<dynamic>? ?? [];
   }
 
+  /// Purchase Invoice line items for the Items breakdown.
+  static Future<List<dynamic>> getPurchaseInvoiceItems({
+    String? fromDate,
+    String? toDate,
+    int limit = 500,
+  }) async {
+    final filters = <dynamic>[
+      ['docstatus', '=', 1],
+    ];
+    final res = await FrappeClient.getList(
+      doctype: 'Purchase Invoice Item',
+      fields: ['item_code', 'item_name', 'qty', 'amount', 'parent'],
+      filters: filters,
+      orderBy: 'amount desc',
+      limit: limit,
+    );
+    return res['data'] as List<dynamic>? ?? [];
+  }
+
   // ── Activity (Communications / Activity Log) ───────────────────────────
 
   /// Recent Communications — used as the activity feed.

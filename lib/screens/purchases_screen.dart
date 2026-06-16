@@ -1,34 +1,37 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../models/sale_item_model.dart';
-import '../repositories/sales_repository.dart';
+import '../repositories/purchases_repository.dart';
 
-/// Screen 3: Sales Page — loads live data from ERPNext.
-class SalesScreen extends StatefulWidget {
+/// Purchases Screen — mirrors SalesScreen design with live Purchase Invoice data.
+class PurchasesScreen extends StatefulWidget {
   final String baseUrl;
-  const SalesScreen({super.key, required this.baseUrl});
+  const PurchasesScreen({super.key, required this.baseUrl});
 
   @override
-  State<SalesScreen> createState() => _SalesScreenState();
+  State<PurchasesScreen> createState() => _PurchasesScreenState();
 }
 
-class _SalesScreenState extends State<SalesScreen> {
-  final _repo = const SalesRepository();
+class _PurchasesScreenState extends State<PurchasesScreen> {
+  final _repo = const PurchasesRepository();
 
-  SalesPeriod _period = SalesPeriod.today;
-  DateTime    _date   = DateTime.now();
-  SalesSummary? _liveSummary;
-  bool   _loading = true;
+  PurchasesPeriod _period = PurchasesPeriod.today;
+  DateTime _date = DateTime.now();
+  PurchasesSummary? _liveSummary;
+  bool _loading = true;
   String? _error;
 
-  // Empty summary — shown when Frappe returns no data
-  static const SalesSummary _emptySummary = SalesSummary(
-    receipts: 0, netSales: 0, averageSale: 0,
-    receiptsChange: 0, netSalesChange: 0, averageSaleChange: 0,
-    hourlyData: [], items: [],
+  static const PurchasesSummary _emptySummary = PurchasesSummary(
+    receipts: 0,
+    totalSpend: 0,
+    averagePurchase: 0,
+    receiptsChange: 0,
+    totalSpendChange: 0,
+    averagePurchaseChange: 0,
+    chartData: [],
+    items: [],
   );
 
-  SalesSummary get _summary => _liveSummary ?? _emptySummary;
+  PurchasesSummary get _summary => _liveSummary ?? _emptySummary;
 
   @override
   void initState() {
@@ -43,8 +46,8 @@ class _SalesScreenState extends State<SalesScreen> {
     });
     try {
       final data =
-          await _repo.getSalesSummary(period: _period, date: _date);
-      if (mounted) setState(() { _liveSummary = data; _error = null; });
+          await _repo.getPurchasesSummary(period: _period, date: _date);
+      if (mounted) setState(() => _liveSummary = data);
     } catch (e) {
       if (mounted && !kIsWeb) {
         setState(() => _error = 'Unable to load data. Tap refresh to retry.');
@@ -66,7 +69,8 @@ class _SalesScreenState extends State<SalesScreen> {
 
   String get _dateLabel {
     const months = [
-      '', 'January', 'February', 'March', 'April', 'May', 'June',
+      '',
+      'January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December',
     ];
     return '${_date.day}  ${months[_date.month]}';
@@ -74,13 +78,11 @@ class _SalesScreenState extends State<SalesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = Theme.of(context).scaffoldBackgroundColor;
-
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
-          _SalesHeader(
+          _PurchasesHeader(
             dateLabel: _dateLabel,
             onPrev: _prevDate,
             onNext: _nextDate,
@@ -94,16 +96,18 @@ class _SalesScreenState extends State<SalesScreen> {
             Material(
               color: const Color(0xFFEA4335).withValues(alpha: 0.1),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
                   children: [
                     const Icon(Icons.error_outline_rounded,
                         color: Color(0xFFEA4335), size: 16),
                     const SizedBox(width: 8),
                     Expanded(
-                        child: Text(_error!,
-                            style: const TextStyle(
-                                color: Color(0xFFEA4335), fontSize: 12))),
+                      child: Text(_error!,
+                          style: const TextStyle(
+                              color: Color(0xFFEA4335), fontSize: 12)),
+                    ),
                     TextButton(
                       onPressed: _load,
                       child: const Text('Retry',
@@ -119,7 +123,8 @@ class _SalesScreenState extends State<SalesScreen> {
                 : ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      _SalesSummaryCard(summary: _summary, period: _period),
+                      _PurchasesSummaryCard(
+                          summary: _summary, period: _period),
                       const SizedBox(height: 16),
                       _ItemsSection(items: _summary.items),
                     ],
@@ -130,7 +135,6 @@ class _SalesScreenState extends State<SalesScreen> {
     );
   }
 
-  // ── Period bottom sheet ───────────────────────────────────────────────────
   void _showPeriodSheet() {
     showModalBottomSheet(
       context: context,
@@ -162,28 +166,29 @@ class _SalesScreenState extends State<SalesScreen> {
 
   List<Widget> _periodOptions(StateSetter setSheet) {
     final options = [
-      (SalesPeriod.today, 'Today'),
-      (SalesPeriod.thisWeek, 'This week'),
-      (SalesPeriod.thisMonth, 'This month'),
-      (SalesPeriod.thisYear, 'This year'),
-      (SalesPeriod.custom, 'Custom period'),
+      (PurchasesPeriod.today, 'Today'),
+      (PurchasesPeriod.thisWeek, 'This week'),
+      (PurchasesPeriod.thisMonth, 'This month'),
+      (PurchasesPeriod.thisYear, 'This year'),
+      (PurchasesPeriod.custom, 'Custom period'),
     ];
     return options.map((opt) {
       final isSelected = _period == opt.$1;
       return ListTile(
         contentPadding: EdgeInsets.zero,
         leading: Icon(
-          isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+          isSelected
+              ? Icons.radio_button_checked
+              : Icons.radio_button_unchecked,
           color: const Color(0xFF2B3A8C),
           size: 22,
         ),
-        title: Text(opt.$2,
-            style: Theme.of(context).textTheme.bodyLarge),
+        title: Text(opt.$2, style: Theme.of(context).textTheme.bodyLarge),
         onTap: () {
           setState(() => _period = opt.$1);
           setSheet(() {});
           Navigator.pop(context);
-          _load(); // reload with new period
+          _load();
         },
       );
     }).toList();
@@ -191,19 +196,19 @@ class _SalesScreenState extends State<SalesScreen> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// ── Header widget ─────────────────────────────────────────────────────────────
+// ── Header ────────────────────────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════════════════
-class _SalesHeader extends StatelessWidget {
+class _PurchasesHeader extends StatelessWidget {
   final String dateLabel;
   final VoidCallback onPrev;
   final VoidCallback onNext;
   final VoidCallback onFilterTap;
-  final SalesPeriod period;
+  final PurchasesPeriod period;
   final bool isLoading;
   final VoidCallback onRefresh;
   final String companyName;
 
-  const _SalesHeader({
+  const _PurchasesHeader({
     required this.dateLabel,
     required this.onPrev,
     required this.onNext,
@@ -216,11 +221,11 @@ class _SalesHeader extends StatelessWidget {
 
   String get _periodLabel {
     switch (period) {
-      case SalesPeriod.today:      return 'Today';
-      case SalesPeriod.thisWeek:   return 'This week';
-      case SalesPeriod.thisMonth:  return 'This month';
-      case SalesPeriod.thisYear:   return 'This year';
-      case SalesPeriod.custom:     return 'Custom period';
+      case PurchasesPeriod.today:     return 'Today';
+      case PurchasesPeriod.thisWeek:  return 'This week';
+      case PurchasesPeriod.thisMonth: return 'This month';
+      case PurchasesPeriod.thisYear:  return 'This year';
+      case PurchasesPeriod.custom:    return 'Custom period';
     }
   }
 
@@ -236,7 +241,6 @@ class _SalesHeader extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ── Top row: title + actions ─────────────────────────────
             Row(
               children: [
                 const SizedBox(width: 8),
@@ -244,14 +248,15 @@ class _SalesHeader extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Sales',
+                      const Text('Purchases',
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: 18,
                               fontWeight: FontWeight.bold)),
                       const SizedBox(height: 2),
                       Text(companyName,
-                          style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12)),
                     ],
                   ),
                 ),
@@ -275,7 +280,6 @@ class _SalesHeader extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            // ── Date row ─────────────────────────────────────────────
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -313,13 +317,14 @@ class _SalesHeader extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// ── Sales summary card ─────────────────────────────────────────────────────────
+// ── Summary card ──────────────────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════════════════
-class _SalesSummaryCard extends StatelessWidget {
-  final SalesSummary summary;
-  final SalesPeriod period;
+class _PurchasesSummaryCard extends StatelessWidget {
+  final PurchasesSummary summary;
+  final PurchasesPeriod period;
 
-  const _SalesSummaryCard({required this.summary, required this.period});
+  const _PurchasesSummaryCard(
+      {required this.summary, required this.period});
 
   String _fmt(double v) {
     if (v >= 1000000) return 'UGX ${(v / 1000000).toStringAsFixed(1)}M';
@@ -331,7 +336,8 @@ class _SalesSummaryCard extends StatelessWidget {
       v >= 0 ? '+${v.toStringAsFixed(2)}%' : '${v.toStringAsFixed(2)}%';
 
   Color _changeColor(double v) =>
-      v >= 0 ? const Color(0xFF34A853) : const Color(0xFFEA4335);
+      // For purchases, spending MORE is negative (red), less is positive (green)
+      v <= 0 ? const Color(0xFF34A853) : const Color(0xFFEA4335);
 
   @override
   Widget build(BuildContext context) {
@@ -343,10 +349,9 @@ class _SalesSummaryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Card title ─────────────────────────────────────────────
             Center(
               child: Text(
-                'Sales summary',
+                'Purchases summary',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -356,36 +361,33 @@ class _SalesSummaryCard extends StatelessWidget {
               height: 20,
               color: scheme.onSurface.withValues(alpha: 0.1),
             ),
-
-            // ── Two ring stats ─────────────────────────────────────
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _RingStat(
-                  value: _fmt(summary.netSales),
-                  rawValue: summary.netSales,
-                  maxValue: summary.netSales > summary.averageSale
-                      ? summary.netSales
-                      : summary.averageSale,
-                  label: 'Sales Income',
-                  change: _fmtChange(summary.netSalesChange),
-                  changeColor: _changeColor(summary.netSalesChange),
+                  value: summary.receipts.toString(),
+                  rawValue: summary.receipts.toDouble(),
+                  maxValue: summary.receipts.toDouble() > summary.averagePurchase
+                      ? summary.receipts.toDouble()
+                      : summary.averagePurchase,
+                  label: 'Total Receipts',
+                  change: _fmtChange(summary.receiptsChange),
+                  changeColor: _changeColor(summary.receiptsChange),
                   ringColor: const Color(0xFFFF8C42),
                 ),
                 _RingStat(
-                  value: _fmt(summary.averageSale),
-                  rawValue: summary.averageSale,
-                  maxValue: summary.netSales > summary.averageSale
-                      ? summary.netSales
-                      : summary.averageSale,
-                  label: 'Total Sales',
-                  change: _fmtChange(summary.averageSaleChange),
-                  changeColor: _changeColor(summary.averageSaleChange),
+                  value: _fmt(summary.averagePurchase),
+                  rawValue: summary.averagePurchase,
+                  maxValue: summary.receipts.toDouble() > summary.averagePurchase
+                      ? summary.receipts.toDouble()
+                      : summary.averagePurchase,
+                  label: 'Total Purchases',
+                  change: _fmtChange(summary.averagePurchaseChange),
+                  changeColor: _changeColor(summary.averagePurchaseChange),
                   ringColor: const Color(0xFF1A73E8),
                 ),
               ],
             ),
-
             const SizedBox(height: 8),
           ],
         ),
@@ -394,7 +396,7 @@ class _SalesSummaryCard extends StatelessWidget {
   }
 }
 
-// ── Ring stat widget ───────────────────────────────────────────────────────
+// ── Ring stat ─────────────────────────────────────────────────────────────
 class _RingStat extends StatelessWidget {
   final String value;
   final double rawValue;
@@ -414,18 +416,14 @@ class _RingStat extends StatelessWidget {
     required this.ringColor,
   });
 
-  /// Fill ratio: 0.05 minimum so the ring always shows something,
-  /// 1.0 for the highest value.
   double get _fillRatio {
     if (maxValue <= 0) return 0.05;
-    final ratio = rawValue / maxValue;
-    return ratio.clamp(0.05, 1.0);
+    return (rawValue / maxValue).clamp(0.05, 1.0);
   }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-
     return Column(
       children: [
         SizedBox(
@@ -476,10 +474,9 @@ class _RingStat extends StatelessWidget {
         Text(
           change,
           style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: changeColor,
-          ),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: changeColor),
         ),
       ],
     );
@@ -487,14 +484,14 @@ class _RingStat extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// ── Items section ──────────────────────────────────────────────────────────────
+// ── Items section ─────────────────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════════════════
 class _ItemsSection extends StatelessWidget {
-  final List<SaleItemModel> items;
+  final List<PurchaseItemModel> items;
   const _ItemsSection({required this.items});
 
   String _fmt(double v) {
-    if (v >= 1000000) return 'UGX ${(v / 1000000).toStringAsFixed(2)}M';
+    if (v >= 1000000) return 'UGX ${(v / 1000000).toStringAsFixed(1)}M';
     if (v >= 1000) return 'UGX ${(v / 1000).toStringAsFixed(0)}K';
     return 'UGX ${v.toStringAsFixed(0)}';
   }
@@ -502,13 +499,10 @@ class _ItemsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final totalCost = items.fold<double>(0, (sum, item) => sum + item.totalAmount);
-
     return Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header ────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Center(
@@ -520,177 +514,80 @@ class _ItemsSection extends StatelessWidget {
               ),
             ),
           ),
-          Divider(height: 1, color: scheme.onSurface.withValues(alpha: 0.08)),
-
-          // ── Column headers ─────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
+          Divider(
+              height: 1, color: scheme.onSurface.withValues(alpha: 0.08)),
+          ...List.generate(items.length, (i) {
+            final item = items[i];
+            return Column(
               children: [
-                Expanded(
-                  flex: 4,
-                  child: Text('Item',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: scheme.onSurface.withValues(alpha: 0.45),
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.5,
-                          )),
-                ),
-                SizedBox(
-                  width: 60,
-                  child: Text('Qty',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: scheme.onSurface.withValues(alpha: 0.45),
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.5,
-                          )),
-                ),
-                SizedBox(
-                  width: 90,
-                  child: Text('Cost',
-                      textAlign: TextAlign.right,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: scheme.onSurface.withValues(alpha: 0.45),
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.5,
-                          )),
-                ),
-              ],
-            ),
-          ),
-          Divider(height: 1, color: scheme.onSurface.withValues(alpha: 0.06)),
-
-          // ── Item rows ──────────────────────────────────────────────
-          if (items.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: Center(
-                child: Text(
-                  'No items for this period',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurface.withValues(alpha: 0.4),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 22,
+                        backgroundColor:
+                            const Color(0xFFFF8C42).withValues(alpha: 0.12),
+                        child: const Icon(
+                          Icons.inventory_2_rounded,
+                          color: Color(0xFFFF8C42),
+                          size: 20,
+                        ),
                       ),
-                ),
-              ),
-            )
-          else
-            ...List.generate(items.length, (i) {
-              final item = items[i];
-              final unitCost = item.quantity > 0
-                  ? item.totalAmount / item.quantity
-                  : item.totalAmount;
-              return Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 11),
-                    child: Row(
-                      children: [
-                        // Item name + unit cost
-                        Expanded(
-                          flex: 4,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.name,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: scheme.onSurface,
-                                    ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${_fmt(unitCost)} / unit',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelSmall
-                                    ?.copyWith(
-                                      color: scheme.onSurface
-                                          .withValues(alpha: 0.45),
-                                    ),
-                              ),
-                            ],
-                          ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.name,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: scheme.onSurface,
+                                  ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              'x ${item.quantity}',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: scheme.onSurface
+                                        .withValues(alpha: 0.5),
+                                  ),
+                            ),
+                          ],
                         ),
-                        // Quantity
-                        SizedBox(
-                          width: 60,
-                          child: Text(
-                            '${item.quantity}',
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: scheme.onSurface
-                                      .withValues(alpha: 0.65),
-                                ),
-                          ),
+                      ),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          _fmt(item.totalAmount),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: scheme.onSurface,
+                                  ),
                         ),
-                        // Line total
-                        SizedBox(
-                          width: 90,
-                          child: Text(
-                            _fmt(item.totalAmount),
-                            textAlign: TextAlign.right,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: scheme.onSurface,
-                                ),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                ),
+                if (i < items.length - 1)
                   Divider(
                     height: 1,
                     indent: 16,
-                    color: scheme.onSurface.withValues(alpha: 0.05),
+                    color: scheme.onSurface.withValues(alpha: 0.06),
                   ),
-                ],
-              );
-            }),
-
-          // ── Total cost row ─────────────────────────────────────────
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF2B3A8C).withValues(alpha: 0.06),
-              borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(12)),
-            ),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Total Cost',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: scheme.onSurface,
-                      ),
-                ),
-                Text(
-                  _fmt(totalCost),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2B3A8C),
-                  ),
-                ),
               ],
-            ),
-          ),
+            );
+          }),
+          const SizedBox(height: 8),
         ],
       ),
     );

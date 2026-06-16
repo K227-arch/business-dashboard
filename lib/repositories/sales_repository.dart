@@ -17,62 +17,58 @@ class SalesRepository {
     final fromDate = range.$1;
     final toDate   = range.$2;
 
-    // Fetch invoices + items concurrently
-    final results = await Future.wait([
-      FrappeApi.getSalesInvoices(fromDate: fromDate, toDate: toDate, limit: 500),
-      FrappeApi.getSalesInvoiceItems(limit: 500),
-    ]);
+    try {
+      // Fetch invoices + items concurrently
+      final results = await Future.wait([
+        FrappeApi.getSalesInvoices(fromDate: fromDate, toDate: toDate, limit: 500),
+        FrappeApi.getSalesInvoiceItems(limit: 500),
+      ]);
 
-    final invoices   = results[0];
-    final itemsRaw   = results[1];
+      final invoices   = results[0];
+      final itemsRaw   = results[1];
 
-    // ── Compute summary metrics ──────────────────────────────────────────
-    final receipts   = invoices.length;
-    final netSales   = invoices.fold<double>(
-        0, (s, i) => s + _toDouble(i['net_total']));
-    final averageSale = receipts == 0 ? 0.0 : netSales / receipts;
+      final receipts   = invoices.length;
+      final netSales   = invoices.fold<double>(
+          0, (s, i) => s + _toDouble(i['net_total']));
+      final averageSale = receipts == 0 ? 0.0 : netSales / receipts;
+      final hourlyData = _buildChartData(invoices, period);
 
-    // ── Build hourly/daily chart data ────────────────────────────────────
-    final hourlyData = _buildChartData(invoices, period);
+      final Map<String, _ItemAgg> agg = {};
+      for (final item in itemsRaw) {
+        final key  = item['item_name']?.toString() ?? item['item_code']?.toString() ?? 'Unknown';
+        final qty  = _toDouble(item['qty']);
+        final amt  = _toDouble(item['amount']);
+        agg.update(
+          key,
+          (existing) => _ItemAgg(existing.name, existing.qty + qty, existing.amount + amt),
+          ifAbsent: () => _ItemAgg(key, qty, amt),
+        );
+      }
 
-    // ── Aggregate items ──────────────────────────────────────────────────
-    final Map<String, _ItemAgg> agg = {};
-    for (final item in itemsRaw) {
-      final key  = item['item_name']?.toString() ?? item['item_code']?.toString() ?? 'Unknown';
-      final qty  = _toDouble(item['qty']);
-      final amt  = _toDouble(item['amount']);
-      agg.update(
-        key,
-        (existing) => _ItemAgg(
-          existing.name, existing.qty + qty, existing.amount + amt),
-        ifAbsent: () => _ItemAgg(key, qty, amt),
+      final items = agg.values.toList()..sort((a, b) => b.amount.compareTo(a.amount));
+      final saleItems = items.take(20).map((a) => SaleItemModel(
+            name: a.name.toUpperCase(),
+            quantity: a.qty.toInt(),
+            totalAmount: a.amount,
+          )).toList();
+
+      return SalesSummary(
+        receipts: receipts,
+        netSales: netSales,
+        averageSale: averageSale,
+        receiptsChange: 0,
+        netSalesChange: 0,
+        averageSaleChange: 0,
+        hourlyData: hourlyData,
+        items: saleItems,
+      );
+    } catch (_) {
+      return const SalesSummary(
+        receipts: 0, netSales: 0, averageSale: 0,
+        receiptsChange: 0, netSalesChange: 0, averageSaleChange: 0,
+        hourlyData: [], items: [],
       );
     }
-
-    final items = agg.values
-        .toList()
-      ..sort((a, b) => b.amount.compareTo(a.amount));
-
-    final saleItems = items
-        .take(20)
-        .map((a) => SaleItemModel(
-              name: a.name.toUpperCase(),
-              quantity: a.qty.toInt(),
-              totalAmount: a.amount,
-            ))
-        .toList();
-
-    return SalesSummary(
-      receipts: receipts,
-      netSales: netSales,
-      averageSale: averageSale,
-      // Placeholder change % — would need prior period data for real %
-      receiptsChange: 0,
-      netSalesChange: 0,
-      averageSaleChange: 0,
-      hourlyData: hourlyData,
-      items: saleItems,
-    );
   }
 
   // ── Chart bucketing ────────────────────────────────────────────────────

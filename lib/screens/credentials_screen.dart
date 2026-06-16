@@ -12,8 +12,8 @@ class CredentialsScreen extends StatefulWidget {
 class _CredentialsScreenState extends State<CredentialsScreen> {
   final _usrController = TextEditingController();
   final _pwdController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
-  bool _loading = false;
+  final _formKey       = GlobalKey<FormState>();
+  bool _loading    = false;
   bool _obscurePwd = true;
 
   @override
@@ -56,6 +56,9 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  const SizedBox(height: 24),
+
+                  // ── Icon ─────────────────────────────────────────────
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -66,75 +69,103 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
                         color: scheme.primary, size: 48),
                   ),
                   const SizedBox(height: 24),
+
                   Text(
-                    'Login',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: scheme.onSurface,
+                    'Sign in',
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineSmall
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.auth.baseUrl,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurface.withValues(alpha: 0.45),
                         ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 32),
+
+                  // ── Email / Username ─────────────────────────────────
                   TextFormField(
                     controller: _usrController,
                     keyboardType: TextInputType.emailAddress,
                     autofocus: true,
+                    textInputAction: TextInputAction.next,
                     decoration: InputDecoration(
-                      labelText: 'Username or Email',
-                      prefixIcon: const Icon(Icons.person_outline_rounded),
+                      labelText: 'Email or Username',
+                      prefixIcon:
+                          const Icon(Icons.person_outline_rounded),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                          borderRadius: BorderRadius.circular(12)),
                       filled: true,
                       fillColor: Theme.of(context).cardTheme.color,
                     ),
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return 'Please enter your username or email';
-                      }
-                      return null;
-                    },
-                    onFieldSubmitted: (_) => _login(),
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Please enter your email or username'
+                        : null,
                   ),
                   const SizedBox(height: 16),
+
+                  // ── Password ─────────────────────────────────────────
                   TextFormField(
                     controller: _pwdController,
                     obscureText: _obscurePwd,
+                    textInputAction: TextInputAction.done,
                     decoration: InputDecoration(
                       labelText: 'Password',
                       prefixIcon: const Icon(Icons.lock_outline_rounded),
                       suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePwd
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
-                        ),
+                        icon: Icon(_obscurePwd
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined),
                         onPressed: () =>
                             setState(() => _obscurePwd = !_obscurePwd),
                       ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                          borderRadius: BorderRadius.circular(12)),
                       filled: true,
                       fillColor: Theme.of(context).cardTheme.color,
                     ),
-                    validator: (v) {
-                      if (v == null || v.isEmpty) {
-                        return 'Please enter your password';
-                      }
-                      return null;
-                    },
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Please enter your password' : null,
                     onFieldSubmitted: (_) => _login(),
                   ),
+
+                  // ── Error ─────────────────────────────────────────────
                   if (widget.auth.error != null) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      widget.auth.error!,
-                      style: const TextStyle(
-                          color: Color(0xFFEA4335), fontSize: 13),
-                      textAlign: TextAlign.center,
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEA4335).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: const Color(0xFFEA4335)
+                                .withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline_rounded,
+                              color: Color(0xFFEA4335), size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              widget.auth.error!,
+                              style: const TextStyle(
+                                  color: Color(0xFFEA4335), fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
+
                   const SizedBox(height: 24),
+
+                  // ── Login button ─────────────────────────────────────
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -148,50 +179,23 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
                                   strokeWidth: 2, color: Colors.white))
                           : const Text('Login',
                               style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w600)),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600)),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(child: Divider(color: scheme.outlineVariant)),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Text('or',
-                            style: TextStyle(
-                                color: scheme.onSurface.withValues(alpha: 0.5),
-                                fontSize: 13)),
-                      ),
-                      Expanded(child: Divider(color: scheme.outlineVariant)),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: OutlinedButton.icon(
-                      onPressed: _loading
-                          ? null
-                          : () async {
-                              setState(() => _loading = true);
-                              await widget.auth.googleLogin();
-                              if (mounted) setState(() => _loading = false);
-                            },
-                      icon: Image.asset(
-                        'assets/google_logo.png',
-                        height: 20,
-                        width: 20,
-                        errorBuilder: (_, __, ___) =>
-                            const Icon(Icons.login_rounded, size: 20),
-                      ),
-                      label: const Text('Sign in with Google',
-                          style: TextStyle(fontSize: 15)),
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
+
+                  // ── Change URL ────────────────────────────────────────
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () => widget.auth.logout(),
+                    child: Text(
+                      'Change server URL',
+                      style: TextStyle(
+                          color: scheme.onSurface.withValues(alpha: 0.5),
+                          fontSize: 13),
                     ),
                   ),
+                  const SizedBox(height: 24),
                 ],
               ),
             ),

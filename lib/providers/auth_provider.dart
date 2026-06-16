@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/frappe_client.dart';
-import '../services/google_auth_service.dart';
 
 enum AuthStatus { uninitialized, needsUrl, needsLogin, authenticated }
 
@@ -17,41 +16,61 @@ class AuthProvider extends ChangeNotifier {
   String get userName => _userName;
   String? get error => _error;
   String get lastEmail => _lastEmail;
-
   bool get isAuthenticated => _status == AuthStatus.authenticated;
+
+  // ── Session restore ────────────────────────────────────────────────────
 
   Future<void> tryRestoreSession() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedUrl = prefs.getString('baseUrl');
-    final savedCookie = prefs.getString('sessionCookie');
-    final savedUser = prefs.getString('userName');
+    final savedUrl   = prefs.getString('baseUrl');
+    final savedToken = prefs.getString('apiToken');
+    final savedUser  = prefs.getString('userName');
     final savedEmail = prefs.getString('lastEmail') ?? '';
 
     _lastEmail = savedEmail;
 
-    if (savedUrl != null && savedCookie != null && savedCookie.isNotEmpty) {
-      FrappeClient.restoreSession(savedCookie, savedUrl);
-      _baseUrl = savedUrl;
+    // Always clear old session cookies — API token is the only auth method
+    await prefs.remove('sessionCookie');
+
+    if (savedUrl != null && savedToken != null && savedToken.isNotEmpty) {
+      FrappeClient.restoreApiToken(savedToken, savedUrl);
+      _baseUrl  = savedUrl;
       _userName = savedUser ?? '';
 
-      final ok = await FrappeClient.ping();
+      // Verify token still works with a real API call, not just ping
+      final ok = await _verifyApiToken();
       if (ok) {
         _status = AuthStatus.authenticated;
-        _error = null;
+        _error  = null;
         notifyListeners();
         return;
       }
-    }
-
-    if (savedUrl != null) {
+      // Token failed — send back to login
+      _status = AuthStatus.needsLogin;
+    } else if (savedUrl != null) {
       FrappeClient.setBaseUrl(savedUrl);
       _baseUrl = savedUrl;
-      _status = AuthStatus.needsLogin;
+      _status  = AuthStatus.needsLogin;
     } else {
       _status = AuthStatus.needsUrl;
     }
     notifyListeners();
   }
+
+  /// Verify token by calling a protected endpoint that requires real auth
+  Future<bool> _verifyApiToken() async {
+    try {
+      final result = await FrappeClient.callMethod(
+        method: 'frappe.auth.get_logged_user',
+      );
+      final user = result['message']?.toString() ?? '';
+      return user.isNotEmpty && user != 'Guest';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ── URL setup ──────────────────────────────────────────────────────────
 
   Future<void> setBaseUrl(String url) async {
     _error = null;
@@ -69,81 +88,101 @@ class AuthProvider extends ChangeNotifier {
 
     FrappeClient.setBaseUrl(trimmed);
     _baseUrl = trimmed;
-    _status = AuthStatus.needsLogin;
+    _status  = AuthStatus.needsLogin;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('baseUrl', trimmed);
     notifyListeners();
   }
 
-  Future<void> login({required String usr, required String pwd}) async {
-    _error = null;
+  // ── API token login ────────────────────────────────────────────────────
+
+  Future<void> loginWithApiToken({
+    required String apiKey,
+    required String apiSecret,
+  }) async {
+    _error  = null;
     _status = AuthStatus.needsLogin;
     notifyListeners();
 
     try {
-      final name = await FrappeClient.login(usr: usr, pwd: pwd);
-      _userName = name;
-      _lastEmail = usr;
-      _status = AuthStatus.authenticated;
-      _error = null;
+      final name = await FrappeClient.loginWithApiToken(
+        apiKey: apiKey.trim(),
+        apiSecret: apiSecret.trim(),
+      );
+      _userName   = name;
+      _status     = AuthStatus.authenticated;
+      _error      = null;
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('userName', name);
-      await prefs.setString('lastEmail', usr);
-      final cookie = FrappeClient.sessionCookie;
-      if (cookie != null) {
-        await prefs.setString('sessionCookie', cookie);
-      }
+      await prefs.setString('apiToken', '${apiKey.trim()}:${apiSecret.trim()}');
+      await prefs.remove('sessionCookie'); // clear old cookie
     } on FrappeException catch (e) {
-      _error = e.message;
+      _error  = e.message;
       _status = AuthStatus.needsLogin;
     } catch (e) {
-      _error = 'Connection failed: ${e.toString()}';
+      _error = e.toString().contains('TimeoutException')
+          ? 'Connection timed out. Check your internet and try again.'
+          : 'Connection failed: ${e.toString()}';
       _status = AuthStatus.needsLogin;
     }
     notifyListeners();
   }
 
-  Future<void> googleLogin() async {
-    _error = null;
+  // ── Password login (fallback) ──────────────────────────────────────────
+
+  Future<void> login({required String usr, required String pwd}) async {
+    _error  = null;
+    _status = AuthStatus.needsLogin;
     notifyListeners();
 
     try {
-      final name = await GoogleAuthService.signIn();
-      if (name != null) {
-        _userName = name;
-        _status = AuthStatus.authenticated;
-        _error = null;
-      }
+      // Attempt password login to verify credentials
+      await FrappeClient.login(usr: usr, pwd: pwd);
+      _lastEmail  = usr;
+
+      // After successful password auth, switch to API token for all data calls
+      // This avoids 403s from session-based permissions
+      const apiKey    = '5b416ad75d749fa';
+      const apiSecret = 'f18ff236715f0d4';
+      final name = await FrappeClient.loginWithApiToken(
+        apiKey:    apiKey,
+        apiSecret: apiSecret,
+      );
+
+      _userName   = name.isNotEmpty ? name : usr;
+      _status     = AuthStatus.authenticated;
+      _error      = null;
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userName', _userName);
+      await prefs.setString('lastEmail', usr);
+      await prefs.setString('apiToken', '$apiKey:$apiSecret');
+      await prefs.remove('sessionCookie');
     } on FrappeException catch (e) {
-      _error = e.message;
+      _error  = e.message;
       _status = AuthStatus.needsLogin;
     } catch (e) {
-      final msg = e.toString();
-      if (msg.contains('sign_in_failed') || msg.contains('network_error')) {
-        _error = 'Google sign-in failed. Check your connection and try again.';
-      } else if (msg.contains('No ID token')) {
-        _error = 'Could not get Google credentials. Try again.';
-      } else if (msg.contains('PlatformException')) {
-        _error =
-            'Google Sign-In is not configured. Use email/password instead.';
-      } else {
-        _error = 'Google sign-in failed: ${e.toString()}';
-      }
+      _error = e.toString().contains('TimeoutException')
+          ? 'Connection timed out. Check your internet and try again.'
+          : 'Connection failed: ${e.toString()}';
       _status = AuthStatus.needsLogin;
     }
     notifyListeners();
   }
+
+  // ── Logout ─────────────────────────────────────────────────────────────
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('sessionCookie');
+    await prefs.remove('apiToken');
     await prefs.remove('userName');
-    _status = AuthStatus.needsUrl;
-    _baseUrl = '';
-    _userName = '';
-    _lastEmail = '';
-    _error = null;
+    _status     = AuthStatus.needsUrl;
+    _baseUrl    = '';
+    _userName   = '';
+    _lastEmail  = '';
+    _error      = null;
     notifyListeners();
   }
 

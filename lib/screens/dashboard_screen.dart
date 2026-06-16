@@ -52,8 +52,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
       }
     } catch (e) {
-      // Suppress errors on web (CORS) — show empty UI with zeros
-      if (mounted && !kIsWeb) setState(() => _error = e.toString());
+      // Sub-repositories already catch errors and return empty data.
+      // Only surface errors in debug mode to avoid confusing the user.
+      if (mounted && !kIsWeb) {
+        debugPrint('[Dashboard] load error: $e');
+        // Don't set _error — sub-calls return empty data gracefully
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }

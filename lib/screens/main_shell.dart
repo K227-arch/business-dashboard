@@ -3,7 +3,7 @@ import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import 'dashboard_screen.dart';
 import 'sales_screen.dart';
-import 'transactions_screen.dart';
+import 'purchases_screen.dart';
 
 class MainShell extends StatefulWidget {
   final AuthProvider authProvider;
@@ -40,7 +40,7 @@ class _MainShellState extends State<MainShell> {
         baseUrl: baseUrl,
       ),
       SalesScreen(baseUrl: baseUrl),
-      const TransactionsScreen(),
+      PurchasesScreen(baseUrl: baseUrl),
     ];
 
     return Scaffold(

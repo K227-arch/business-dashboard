@@ -1,9 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../models/purchase_model.dart';
-import '../models/transaction_model.dart';
 import '../repositories/purchases_repository.dart';
-import '../widgets/purchase_tile.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -15,10 +12,10 @@ class TransactionsScreen extends StatefulWidget {
 class _TransactionsScreenState extends State<TransactionsScreen> {
   final _repo = const PurchasesRepository();
 
-  List<PurchaseModel> _liveData = [];
+  List<PurchaseListItem> _liveData = [];
   bool _loading = true;
   String? _error;
-  TransactionStatus? _activeFilter;
+  String? _activeFilter; // null = all, "Paid", "Unpaid", "Cancelled"
 
   @override
   void initState() {
@@ -29,7 +26,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final data = await _repo.getPurchases(limit: 100);
+      final data = await _repo.getPurchaseList(limit: 100);
       if (mounted) setState(() => _liveData = data);
     } catch (e) {
       if (mounted && !kIsWeb) setState(() => _error = e.toString());
@@ -38,15 +35,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     }
   }
 
-  List<PurchaseModel> get _all => _liveData;
+  List<PurchaseListItem> get _all => _liveData;
 
-  List<PurchaseModel> get _filtered {
+  List<PurchaseListItem> get _filtered {
     if (_activeFilter == null) return _all;
     return _all.where((p) => p.status == _activeFilter).toList();
   }
 
-  double get _totalPurchases =>
-      _all.fold(0, (s, p) => s + p.total);
+  double get _totalPurchases => _all.fold(0, (s, p) => s + p.total);
 
   @override
   Widget build(BuildContext context) {
@@ -124,28 +120,29 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         const SizedBox(width: 8),
                         _FilterChip(
                           label: 'Paid',
-                          isSelected:
-                              _activeFilter == TransactionStatus.completed,
-                          onTap: () => setState(() =>
-                              _activeFilter = TransactionStatus.completed),
+                          isSelected: _activeFilter == 'Paid',
+                          onTap: () => setState(() => _activeFilter = 'Paid'),
                           color: const Color(0xFF34A853),
                         ),
                         const SizedBox(width: 8),
                         _FilterChip(
-                          label: 'Pending',
-                          isSelected:
-                              _activeFilter == TransactionStatus.pending,
-                          onTap: () => setState(() =>
-                              _activeFilter = TransactionStatus.pending),
+                          label: 'Unpaid',
+                          isSelected: _activeFilter == 'Unpaid',
+                          onTap: () => setState(() => _activeFilter = 'Unpaid'),
                           color: const Color(0xFFFBBC04),
                         ),
                         const SizedBox(width: 8),
                         _FilterChip(
+                          label: 'Overdue',
+                          isSelected: _activeFilter == 'Overdue',
+                          onTap: () => setState(() => _activeFilter = 'Overdue'),
+                          color: const Color(0xFFFF8C42),
+                        ),
+                        const SizedBox(width: 8),
+                        _FilterChip(
                           label: 'Cancelled',
-                          isSelected:
-                              _activeFilter == TransactionStatus.failed,
-                          onTap: () => setState(() =>
-                              _activeFilter = TransactionStatus.failed),
+                          isSelected: _activeFilter == 'Cancelled',
+                          onTap: () => setState(() => _activeFilter = 'Cancelled'),
                           color: const Color(0xFFEA4335),
                         ),
                       ],
@@ -180,7 +177,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       ),
                     )
                   else
-                    ..._filtered.map((p) => PurchaseTile(purchase: p)),
+                    ..._filtered.map((p) => _PurchaseListTile(item: p)),
 
                   const SizedBox(height: 24),
                 ]),
@@ -212,9 +209,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     ?.copyWith(fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             _sheetOption('All', null),
-            _sheetOption('Paid', TransactionStatus.completed),
-            _sheetOption('Pending', TransactionStatus.pending),
-            _sheetOption('Cancelled', TransactionStatus.failed),
+            _sheetOption('Paid', 'Paid'),
+            _sheetOption('Unpaid', 'Unpaid'),
+            _sheetOption('Overdue', 'Overdue'),
+            _sheetOption('Cancelled', 'Cancelled'),
             const SizedBox(height: 8),
           ],
         ),
@@ -222,7 +220,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
-  Widget _sheetOption(String label, TransactionStatus? status) {
+  Widget _sheetOption(String label, String? status) {
     final isSelected = _activeFilter == status;
     return ListTile(
       leading: Icon(
@@ -387,6 +385,136 @@ class _FilterChip extends StatelessWidget {
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
             fontSize: 13,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PurchaseListTile extends StatelessWidget {
+  final PurchaseListItem item;
+  const _PurchaseListTile({required this.item});
+
+  Color get _statusColor {
+    switch (item.status) {
+      case 'Paid':       return const Color(0xFF34A853);
+      case 'Overdue':    return const Color(0xFFEA4335);
+      case 'Cancelled':  return const Color(0xFFEA4335);
+      default:           return const Color(0xFFFBBC04); // Unpaid
+    }
+  }
+
+  String get _statusLabel => item.status;
+
+  String _fmt(double v) {
+    if (v >= 1000000) return 'UGX ${(v / 1000000).toStringAsFixed(2)}M';
+    if (v >= 1000) return 'UGX ${(v / 1000).toStringAsFixed(0)}K';
+    return 'UGX ${v.toStringAsFixed(0)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF8C42).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.shopping_cart_rounded,
+                color: Color(0xFFFF8C42),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.supplierName,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: scheme.onSurface,
+                        ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    item.description,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurface.withValues(alpha: 0.55),
+                        ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(
+                        item.id,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: scheme.onSurface.withValues(alpha: 0.38),
+                            ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 4, height: 4,
+                        decoration: BoxDecoration(
+                          color: scheme.onSurface.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        item.date,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: scheme.onSurface.withValues(alpha: 0.38),
+                            ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  _fmt(item.total),
+                  style: const TextStyle(
+                    color: Color(0xFFFF8C42),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: _statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    _statusLabel,
+                    style: TextStyle(
+                      color: _statusColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
