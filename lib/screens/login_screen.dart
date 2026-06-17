@@ -49,17 +49,20 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: scheme.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
+                      color: const Color(0xFF5B5EA6),
+                      borderRadius: BorderRadius.circular(24),
                     ),
-                    child: Icon(Icons.cloud_outlined,
-                        color: scheme.primary, size: 48),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      width: 80,
+                      height: 80,
+                    ),
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Connect to ERPNext',
+                    'Sales Plus',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: scheme.onSurface,

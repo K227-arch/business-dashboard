@@ -1,10 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../models/activity_model.dart';
 import '../models/summary_card_model.dart';
 import '../providers/theme_provider.dart';
 import '../repositories/dashboard_repository.dart';
-import '../widgets/activity_tile.dart';
 import '../widgets/sales_chart.dart';
 import '../widgets/summary_card.dart';
 
@@ -13,11 +11,14 @@ class DashboardScreen extends StatefulWidget {
   final ThemeProvider themeProvider;
   final String userName;
   final String baseUrl;
+  final VoidCallback onLogout;
+
   const DashboardScreen({
     super.key,
     required this.themeProvider,
     required this.userName,
     required this.baseUrl,
+    required this.onLogout,
   });
 
   @override
@@ -28,7 +29,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final _repo = const DashboardRepository();
 
   List<SummaryCardModel> _cards = [];
-  List<ActivityModel>    _activity = [];
   bool _loading = true;
   String? _error;
 
@@ -41,23 +41,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final results = await Future.wait([
-        _repo.getSummaryCards(),
-        _repo.getRecentActivity(),
-      ]);
-      if (mounted) {
-        setState(() {
-          _cards    = results[0] as List<SummaryCardModel>;
-          _activity = results[1] as List<ActivityModel>;
-        });
-      }
+      final cards = await _repo.getSummaryCards();
+      if (mounted) setState(() => _cards = cards);
     } catch (e) {
-      // Sub-repositories already catch errors and return empty data.
-      // Only surface errors in debug mode to avoid confusing the user.
-      if (mounted && !kIsWeb) {
-        debugPrint('[Dashboard] load error: $e');
-        // Don't set _error — sub-calls return empty data gracefully
-      }
+      if (mounted && !kIsWeb) debugPrint('[Dashboard] load error: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -132,16 +119,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       _ThemeToggleButton(provider: widget.themeProvider),
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(right: 16),
-                  child: CircleAvatar(
-                    radius: 18,
-                    backgroundColor: scheme.primaryContainer,
-                    child: Text(
-                      'A',
-                      style: TextStyle(
-                        color: scheme.onPrimaryContainer,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                  padding: const EdgeInsets.only(right: 8),
+                  child: PopupMenuButton<String>(
+                    offset: const Offset(0, 48),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    onSelected: (value) {
+                      if (value == 'logout') widget.onLogout();
+                    },
+                    itemBuilder: (_) => [
+                      PopupMenuItem(
+                        enabled: false,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.userName,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                            Text(
+                              Uri.parse(widget.baseUrl).host,
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade500),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem(
+                        value: 'logout',
+                        child: Row(
+                          children: [
+                            Icon(Icons.logout_rounded,
+                                size: 18, color: Color(0xFFEA4335)),
+                            SizedBox(width: 10),
+                            Text('Log out',
+                                style: TextStyle(color: Color(0xFFEA4335))),
+                          ],
+                        ),
+                      ),
+                    ],
+                    child: CircleAvatar(
+                      radius: 18,
+                      backgroundColor: scheme.primaryContainer,
+                      child: Text(
+                        widget.userName.isNotEmpty
+                            ? widget.userName[0].toUpperCase()
+                            : 'U',
+                        style: TextStyle(
+                          color: scheme.onPrimaryContainer,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
                       ),
                     ),
                   ),
@@ -195,41 +226,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const _SectionLabel(label: 'Sales Performance'),
                   const SizedBox(height: 8),
                   const SalesChart(),
-
-                  const SizedBox(height: 24),
-
-                  // ── Recent activity ────────────────────────────────────
-                  const _SectionLabel(label: 'Recent Activity'),
-                  const SizedBox(height: 8),
-                  _loading
-                      ? const Card(
-                          child: Padding(
-                            padding: EdgeInsets.all(12),
-                            child: _SkeletonList(count: 4),
-                          ),
-                        )
-                      : _activity.isEmpty
-                          ? _EmptyState(
-                              icon: Icons.notifications_none_rounded,
-                              message:
-                                  'No recent activity.\nCommunications from ERPNext will appear here.',
-                              onRefresh: _load,
-                            )
-                          : Card(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                                child: Column(
-                                  children: List.generate(
-                                    _activity.length,
-                                    (i) => ActivityTile(
-                                      activity: _activity[i],
-                                      showDivider: i < _activity.length - 1,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
 
                   const SizedBox(height: 24),
                 ]),
@@ -379,21 +375,6 @@ class _SkeletonGrid extends StatelessWidget {
         childAspectRatio: 0.9,
       ),
       itemBuilder: (_, __) => const _Skeleton(height: double.infinity),
-    );
-  }
-}
-
-class _SkeletonList extends StatelessWidget {
-  final int count;
-  const _SkeletonList({required this.count});
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: List.generate(
-          count,
-          (_) => const Padding(
-              padding: EdgeInsets.symmetric(vertical: 6),
-              child: _Skeleton(height: 48))),
     );
   }
 }

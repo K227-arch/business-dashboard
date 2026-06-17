@@ -178,6 +178,26 @@ class FrappeApi {
     return res['data'] as List<dynamic>? ?? [];
   }
 
+  /// Purchase Receipts — Stock > Purchase Receipt (submitted).
+  static Future<List<dynamic>> getPurchaseReceipts({
+    String? fromDate,
+    String? toDate,
+    int limit = 200,
+  }) async {
+    final filters = <dynamic>[['docstatus', '=', 1]];
+    if (fromDate != null) filters.add(['posting_date', '>=', fromDate]);
+    if (toDate != null) filters.add(['posting_date', '<=', toDate]);
+
+    final res = await FrappeClient.getList(
+      doctype: 'Purchase Receipt',
+      fields: ['name', 'supplier', 'total', 'grand_total', 'posting_date', 'status'],
+      filters: filters,
+      orderBy: 'posting_date desc',
+      limit: limit,
+    );
+    return res['data'] as List<dynamic>? ?? [];
+  }
+
   /// Purchase Invoice line items for the Items breakdown.
   static Future<List<dynamic>> getPurchaseInvoiceItems({
     String? fromDate,
@@ -232,18 +252,45 @@ class FrappeApi {
     return allItems;
   }
 
-  // ── Activity (Communications / Activity Log) ───────────────────────────
+  // ── Activity (Activity Log + Comments) ────────────────────────────────
 
-  /// Recent Communications — used as the activity feed.
+  /// Recent activity from Activity Log and Comments.
+  /// Replaces Communication which requires special permissions.
   static Future<List<dynamic>> getRecentActivity({int limit = 10}) async {
-    final res = await FrappeClient.getList(
-      doctype: 'Communication',
-      fields: ['name', 'subject', 'content', 'creation', 'communication_type'],
-      filters: [['sent_or_received', '=', 'Received']],
+    final activityFuture = FrappeClient.getList(
+      doctype: 'Activity Log',
+      fields: ['name', 'subject', 'operation', 'reference_doctype', 'user', 'creation'],
+      filters: [],
       orderBy: 'creation desc',
       limit: limit,
     );
-    return res['data'] as List<dynamic>? ?? [];
+
+    final commentFuture = FrappeClient.getList(
+      doctype: 'Comment',
+      fields: ['name', 'content', 'comment_type', 'reference_doctype', 'reference_name', 'owner', 'creation'],
+      filters: [['comment_type', 'in', 'Comment,Info,Label']],
+      orderBy: 'creation desc',
+      limit: limit,
+    );
+
+    final results = await Future.wait([activityFuture, commentFuture]);
+    final activities = results[0]['data'] as List<dynamic>? ?? [];
+    final comments   = results[1]['data'] as List<dynamic>? ?? [];
+
+    // Merge and tag source
+    final merged = [
+      ...activities.map((a) => {...(a as Map<String, dynamic>), '_source': 'activity'}),
+      ...comments.map((c)  => {...(c as Map<String, dynamic>), '_source': 'comment'}),
+    ];
+
+    // Sort by creation desc
+    merged.sort((a, b) {
+      final da = DateTime.tryParse(a['creation']?.toString() ?? '') ?? DateTime(2000);
+      final db = DateTime.tryParse(b['creation']?.toString() ?? '') ?? DateTime(2000);
+      return db.compareTo(da);
+    });
+
+    return merged.take(limit).toList();
   }
 
   // ── Sales summary helper ───────────────────────────────────────────────

@@ -180,7 +180,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
           isSelected
               ? Icons.radio_button_checked
               : Icons.radio_button_unchecked,
-          color: const Color(0xFF2B3A8C),
+          color: const Color(0xFF5B5EA6),
           size: 22,
         ),
         title: Text(opt.$2, style: Theme.of(context).textTheme.bodyLarge),
@@ -231,7 +231,7 @@ class _PurchasesHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const bg = Color(0xFF2B3A8C);
+    const bg = Color(0xFF5B5EA6);
     return SafeArea(
       bottom: false,
       child: Container(
@@ -362,25 +362,12 @@ class _PurchasesSummaryCard extends StatelessWidget {
               color: scheme.onSurface.withValues(alpha: 0.1),
             ),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _RingStat(
-                  value: summary.receipts.toString(),
-                  rawValue: summary.receipts.toDouble(),
-                  maxValue: summary.receipts.toDouble() > summary.averagePurchase
-                      ? summary.receipts.toDouble()
-                      : summary.averagePurchase,
-                  label: 'Total Receipts',
-                  change: _fmtChange(summary.receiptsChange),
-                  changeColor: _changeColor(summary.receiptsChange),
-                  ringColor: const Color(0xFFFF8C42),
-                ),
                 _RingStat(
                   value: _fmt(summary.averagePurchase),
                   rawValue: summary.averagePurchase,
-                  maxValue: summary.receipts.toDouble() > summary.averagePurchase
-                      ? summary.receipts.toDouble()
-                      : summary.averagePurchase,
+                  maxValue: summary.averagePurchase,
                   label: 'Total Purchases',
                   change: _fmtChange(summary.averagePurchaseChange),
                   changeColor: _changeColor(summary.averagePurchaseChange),
@@ -545,7 +532,7 @@ class _ItemsSection extends StatelessWidget {
                 ),
                 SizedBox(
                   width: 90,
-                  child: Text('Cost',
+                  child: Text('Amount',
                       textAlign: TextAlign.right,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: scheme.onSurface.withValues(alpha: 0.45),
@@ -671,7 +658,7 @@ class _ItemsSection extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Total Cost',
+                  'Total Purchase Receipts',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: scheme.onSurface,

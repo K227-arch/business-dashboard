@@ -174,7 +174,7 @@ class _SalesScreenState extends State<SalesScreen> {
         contentPadding: EdgeInsets.zero,
         leading: Icon(
           isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-          color: const Color(0xFF2B3A8C),
+          color: const Color(0xFF5B5EA6),
           size: 22,
         ),
         title: Text(opt.$2,
@@ -226,7 +226,7 @@ class _SalesHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const bg = Color(0xFF2B3A8C);
+    const bg = Color(0xFF5B5EA6);
     return SafeArea(
       bottom: false,
       child: Container(
@@ -357,27 +357,14 @@ class _SalesSummaryCard extends StatelessWidget {
               color: scheme.onSurface.withValues(alpha: 0.1),
             ),
 
-            // ── Two ring stats ─────────────────────────────────────
+            // ── One ring stat ──────────────────────────────────────
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _RingStat(
-                  value: _fmt(summary.netSales),
-                  rawValue: summary.netSales,
-                  maxValue: summary.netSales > summary.averageSale
-                      ? summary.netSales
-                      : summary.averageSale,
-                  label: 'Sales Income',
-                  change: _fmtChange(summary.netSalesChange),
-                  changeColor: _changeColor(summary.netSalesChange),
-                  ringColor: const Color(0xFFFF8C42),
-                ),
                 _RingStat(
                   value: _fmt(summary.averageSale),
                   rawValue: summary.averageSale,
-                  maxValue: summary.netSales > summary.averageSale
-                      ? summary.netSales
-                      : summary.averageSale,
+                  maxValue: summary.averageSale,
                   label: 'Total Sales',
                   change: _fmtChange(summary.averageSaleChange),
                   changeColor: _changeColor(summary.averageSaleChange),
@@ -548,7 +535,7 @@ class _ItemsSection extends StatelessWidget {
                 ),
                 SizedBox(
                   width: 90,
-                  child: Text('Cost',
+                  child: Text('Amount',
                       textAlign: TextAlign.right,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: scheme.onSurface.withValues(alpha: 0.45),
@@ -664,7 +651,7 @@ class _ItemsSection extends StatelessWidget {
           // ── Total cost row ─────────────────────────────────────────
           Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF2B3A8C).withValues(alpha: 0.06),
+              color: const Color(0xFF5B5EA6).withValues(alpha: 0.06),
               borderRadius: const BorderRadius.vertical(
                   bottom: Radius.circular(12)),
             ),
@@ -674,7 +661,7 @@ class _ItemsSection extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Total Cost',
+                  'Total Amount',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: scheme.onSurface,
@@ -685,7 +672,7 @@ class _ItemsSection extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF2B3A8C),
+                    color: Color(0xFF5B5EA6),
                   ),
                 ),
               ],

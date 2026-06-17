@@ -38,6 +38,7 @@ class _MainShellState extends State<MainShell> {
         themeProvider: widget.themeProvider,
         userName: userName,
         baseUrl: baseUrl,
+        onLogout: () => widget.authProvider.logout(),
       ),
       SalesScreen(baseUrl: baseUrl),
       PurchasesScreen(baseUrl: baseUrl),

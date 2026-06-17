@@ -18,6 +18,9 @@ class _SalesChartState extends State<SalesChart> {
   bool _loading = true;
 
   static const List<String> _days = [
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+  ];
+  static const List<String> _shortDays = [
     'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'
   ];
 
@@ -33,33 +36,40 @@ class _SalesChartState extends State<SalesChart> {
       final data = await _repo.getWeeklySales();
       if (mounted) setState(() => _sales = data);
     } catch (_) {
-      // On error leave sales empty — chart shows flat zero bars
       if (mounted) setState(() => _sales = List.filled(7, 0));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
+  String _fmtAmount(double val) {
+    if (val <= 0) return 'No sales';
+    if (val >= 1) return 'UGX ${val.toStringAsFixed(2)}M';
+    return 'UGX ${(val * 1000).toStringAsFixed(0)}K';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primary = scheme.primary;
+    final scheme  = Theme.of(context).colorScheme;
+    final isDark  = Theme.of(context).brightness == Brightness.dark;
+    final primary = scheme.primary; // SalesPlus purple
 
-    final labelColor = scheme.onSurface.withValues(alpha: 0.5);
-    final gridColor  = scheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.1);
-    final bgRodColor = scheme.onSurface.withValues(alpha: isDark ? 0.05 : 0.06);
-    final tooltipBg  = isDark ? const Color(0xFF2C2F36) : Colors.black87;
+    final labelColor  = scheme.onSurface.withValues(alpha: 0.5);
+    final gridColor   = scheme.onSurface.withValues(alpha: isDark ? 0.08 : 0.1);
+    final bgRodColor  = scheme.onSurface.withValues(alpha: isDark ? 0.05 : 0.06);
 
-    // Max Y — at least 1 so chart doesn't look broken on zero data
     final maxVal = _sales.isEmpty ? 0.0 : _sales.reduce((a, b) => a > b ? a : b);
     final maxY   = maxVal == 0 ? 1.0 : (maxVal * 1.3);
 
-    // Date range label for this week
     final now    = DateTime.now();
     final monday = now.subtract(Duration(days: now.weekday - 1));
     final sunday = monday.add(const Duration(days: 6));
-    final label  = '${_fmtDate(monday)} – ${_fmtDate(sunday)}  •  UGX millions';
+    final weekLabel = '${_fmtDate(monday)} – ${_fmtDate(sunday)}  •  UGX millions';
+
+    // Info shown below chart when a bar is touched
+    final touched = _touchedIndex != null && _touchedIndex! < _sales.length;
+    final touchedDay    = touched ? _days[_touchedIndex!] : null;
+    final touchedAmount = touched ? _sales[_touchedIndex!] : null;
 
     return Card(
       child: Padding(
@@ -67,7 +77,7 @@ class _SalesChartState extends State<SalesChart> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header ──────────────────────────────────────────────────
+            // ── Header ────────────────────────────────────────────────────
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -84,7 +94,7 @@ class _SalesChartState extends State<SalesChart> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        label,
+                        weekLabel,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -94,7 +104,6 @@ class _SalesChartState extends State<SalesChart> {
                     ],
                   ),
                 ),
-                // Refresh button
                 if (!_loading)
                   IconButton(
                     icon: const Icon(Icons.refresh_rounded, size: 18),
@@ -106,24 +115,87 @@ class _SalesChartState extends State<SalesChart> {
                   const Padding(
                     padding: EdgeInsets.all(12),
                     child: SizedBox(
-                      width: 16,
-                      height: 16,
+                      width: 16, height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-            // ── Chart or empty state ─────────────────────────────────────
+            // ── Hover info banner ──────────────────────────────────────────
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: touched
+                  ? Container(
+                      key: ValueKey(_touchedIndex),
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: primary.withValues(alpha: 0.25), width: 1),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.bar_chart_rounded,
+                              color: primary, size: 18),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              touchedDay!,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                color: scheme.onSurface,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            _fmtAmount(touchedAmount!),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: touchedAmount > 0
+                                  ? primary
+                                  : scheme.onSurface.withValues(alpha: 0.4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Container(
+                      key: const ValueKey('hint'),
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: scheme.onSurface.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        'Tap a bar to see daily sales',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: scheme.onSurface.withValues(alpha: 0.35),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+            ),
+            const SizedBox(height: 12),
+
+            // ── Chart or empty state ───────────────────────────────────────
             if (_loading)
               const SizedBox(
-                height: 140,
+                height: 150,
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (maxVal == 0)
               SizedBox(
-                height: 140,
+                height: 150,
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -144,29 +216,36 @@ class _SalesChartState extends State<SalesChart> {
               )
             else
               SizedBox(
-                height: 140,
+                height: 150,
                 child: BarChart(
                   BarChartData(
                     maxY: maxY,
                     barTouchData: BarTouchData(
+                      enabled: true,
+                      handleBuiltInTouches: true,
                       touchTooltipData: BarTouchTooltipData(
-                        getTooltipColor: (_) => tooltipBg,
-                        tooltipRoundedRadius: 8,
-                        getTooltipItem: (group, _, rod, __) => BarTooltipItem(
-                          'UGX ${rod.toY.toStringAsFixed(2)}M',
-                          const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
+                        // Hide the built-in floating tooltip — we use the banner above
+                        getTooltipColor: (_) => Colors.transparent,
+                        tooltipRoundedRadius: 0,
+                        tooltipPadding: EdgeInsets.zero,
+                        getTooltipItem: (_, __, ___, ____) => null,
                       ),
-                      touchCallback: (event, response) {
+                      touchCallback: (FlTouchEvent event, BarTouchResponse? response) {
                         setState(() {
-                          _touchedIndex =
-                              (response == null || response.spot == null)
-                                  ? null
-                                  : response.spot!.touchedBarGroupIndex;
+                          if (event is FlTapUpEvent ||
+                              event is FlPanEndEvent ||
+                              event is FlLongPressEnd) {
+                            // Keep the selection visible after lift
+                            if (response?.spot != null) {
+                              _touchedIndex =
+                                  response!.spot!.touchedBarGroupIndex;
+                            }
+                          } else if (event is FlPointerExitEvent) {
+                            _touchedIndex = null;
+                          } else if (response?.spot != null) {
+                            _touchedIndex =
+                                response!.spot!.touchedBarGroupIndex;
+                          }
                         });
                       },
                     ),
@@ -178,17 +257,22 @@ class _SalesChartState extends State<SalesChart> {
                           reservedSize: 28,
                           getTitlesWidget: (value, _) {
                             final i = value.toInt();
-                            if (i < 0 || i >= _days.length) {
+                            if (i < 0 || i >= _shortDays.length) {
                               return const SizedBox.shrink();
                             }
+                            final isTouched = _touchedIndex == i;
                             return Padding(
                               padding: const EdgeInsets.only(top: 6),
                               child: Text(
-                                _days[i],
+                                _shortDays[i],
                                 style: TextStyle(
-                                  color: labelColor,
+                                  color: isTouched
+                                      ? primary
+                                      : labelColor,
                                   fontSize: 11,
-                                  fontWeight: FontWeight.w500,
+                                  fontWeight: isTouched
+                                      ? FontWeight.bold
+                                      : FontWeight.w500,
                                 ),
                               ),
                             );
@@ -205,7 +289,8 @@ class _SalesChartState extends State<SalesChart> {
                             }
                             return Text(
                               '${value.toStringAsFixed(1)}M',
-                              style: TextStyle(color: labelColor, fontSize: 9),
+                              style:
+                                  TextStyle(color: labelColor, fontSize: 9),
                             );
                           },
                         ),
@@ -231,8 +316,8 @@ class _SalesChartState extends State<SalesChart> {
                             toY: _sales[i],
                             color: isTouched
                                 ? primary
-                                : primary.withValues(alpha: 0.65),
-                            width: 16,
+                                : primary.withValues(alpha: 0.55),
+                            width: isTouched ? 18 : 16,
                             borderRadius: const BorderRadius.vertical(
                                 top: Radius.circular(6)),
                             backDrawRodData: BackgroundBarChartRodData(

@@ -16,40 +16,27 @@ class DashboardRepository {
     final today = '${now.year}-${now.month.toString().padLeft(2, '0')}'
         '-${now.day.toString().padLeft(2, '0')}';
 
-    int invoicesLen, customersLen, ordersLen, pendingLen;
-    double totalSales;
+    double totalSales = 0;
+    double totalPurchaseReceipts = 0;
+    int invoicesLen = 0;
+    int receiptsLen = 0;
 
     try {
-      // Run all four queries concurrently
       final results = await Future.wait([
         FrappeApi.getSalesInvoices(fromDate: thisMonthStart, toDate: today),
-        FrappeApi.getCustomers(),
-        FrappeApi.getActiveSalesOrders(),
-        FrappeApi.getPendingInvoices(),
+        FrappeApi.getPurchaseReceipts(fromDate: thisMonthStart, toDate: today),
       ]);
 
       final invoices  = results[0];
-      final customers = results[1];
-      final orders    = results[2];
-      final pending   = results[3];
+      final purchases = results[1];
 
       totalSales = invoices.fold<double>(
           0, (s, i) => s + _toDouble(i['grand_total']));
+      totalPurchaseReceipts = purchases.fold<double>(
+          0, (s, i) => s + _toDouble(i['grand_total']));
       invoicesLen  = invoices.length;
-      customersLen = customers.length;
-      ordersLen    = orders.length;
-      pendingLen   = pending.length;
-    } catch (_) {
-      totalSales   = 0;
-      invoicesLen  = 0;
-      customersLen = 0;
-      ordersLen    = 0;
-      pendingLen   = 0;
-    }
-
-    final newUsers   = customersLen;
-    final activeProj = ordersLen;
-    final pendingOrd = pendingLen;
+      receiptsLen = purchases.length;
+    } catch (_) {}
 
     return [
       SummaryCardModel(
@@ -57,36 +44,18 @@ class DashboardRepository {
         value: _fmtCurrency(totalSales),
         subtitle: 'This month',
         icon: Icons.trending_up_rounded,
-        color: const Color(0xFF1A73E8),
+        color: const Color(0xFF5B5EA6),
         isPositiveTrend: true,
         trendLabel: '$invoicesLen invoices',
       ),
       SummaryCardModel(
-        title: 'Customers',
-        value: newUsers.toString(),
-        subtitle: 'Total registered',
-        icon: Icons.people_rounded,
-        color: const Color(0xFF34A853),
-        isPositiveTrend: true,
-        trendLabel: '$newUsers total',
-      ),
-      SummaryCardModel(
-        title: 'Active Orders',
-        value: activeProj.toString(),
-        subtitle: 'In progress',
-        icon: Icons.folder_open_rounded,
-        color: const Color(0xFFFBBC04),
-        isPositiveTrend: activeProj > 0,
-        trendLabel: '$activeProj open',
-      ),
-      SummaryCardModel(
-        title: 'Pending Invoices',
-        value: pendingOrd.toString(),
-        subtitle: 'Awaiting payment',
-        icon: Icons.hourglass_top_rounded,
-        color: const Color(0xFFEA4335),
+        title: 'Total Purchase Receipts',
+        value: _fmtCurrency(totalPurchaseReceipts),
+        subtitle: 'This month',
+        icon: Icons.receipt_long_rounded,
+        color: const Color(0xFFFF8C00),
         isPositiveTrend: false,
-        trendLabel: '$pendingOrd unpaid',
+        trendLabel: '$receiptsLen receipts',
       ),
     ];
   }
@@ -128,25 +97,71 @@ class DashboardRepository {
 
   Future<List<ActivityModel>> getRecentActivity() async {
     try {
-      final raw = await FrappeApi.getRecentActivity(limit: 8);
+      final raw = await FrappeApi.getRecentActivity(limit: 10);
       return raw.map<ActivityModel>((item) {
-        final subject = item['subject']?.toString() ?? 'Activity';
-        final content = item['content']?.toString() ?? '';
+        final source = item['_source']?.toString() ?? 'activity';
         final creation = item['creation']?.toString() ?? '';
         final timeAgo = _relativeTime(creation);
 
-        return ActivityModel(
-          title: subject.length > 60 ? '${subject.substring(0, 60)}…' : subject,
-          description: content.length > 80
-              ? '${content.substring(0, 80)}…'
-              : (content.isEmpty ? 'No details' : content),
-          timeAgo: timeAgo,
-          icon: Icons.notifications_rounded,
-          iconColor: const Color(0xFF1A73E8),
-        );
+        if (source == 'activity') {
+          final operation = item['operation']?.toString() ?? 'Activity';
+          final refDoc = item['reference_doctype']?.toString() ?? '';
+          final user = item['user']?.toString() ?? '';
+          final shortUser = user.contains('@') ? user.split('@')[0] : user;
+
+          return ActivityModel(
+            title: refDoc.isNotEmpty ? '$operation — $refDoc' : operation,
+            description: shortUser,
+            timeAgo: timeAgo,
+            icon: _iconForOperation(operation),
+            iconColor: _colorForOperation(operation),
+          );
+        } else {
+          // Comment
+          final content = item['content']?.toString() ?? '';
+          final refDoc = item['reference_doctype']?.toString() ?? '';
+          final refName = item['reference_name']?.toString() ?? '';
+          final owner = item['owner']?.toString() ?? '';
+          final shortOwner = owner.contains('@') ? owner.split('@')[0] : owner;
+          final cleanContent = content
+              .replaceAll(RegExp(r'<[^>]*>'), '') // strip HTML
+              .trim();
+
+          return ActivityModel(
+            title: refDoc.isNotEmpty ? '$refDoc: $refName' : 'Comment',
+            description: cleanContent.length > 60
+                ? '${cleanContent.substring(0, 60)}…'
+                : (cleanContent.isEmpty ? shortOwner : cleanContent),
+            timeAgo: timeAgo,
+            icon: Icons.comment_rounded,
+            iconColor: const Color(0xFF34A853),
+          );
+        }
       }).toList();
     } catch (_) {
       return [];
+    }
+  }
+
+  static IconData _iconForOperation(String op) {
+    switch (op.toLowerCase()) {
+      case 'login':  return Icons.login_rounded;
+      case 'logout': return Icons.logout_rounded;
+      case 'created': case 'save': return Icons.add_circle_outline_rounded;
+      case 'submitted': return Icons.check_circle_outline_rounded;
+      case 'cancelled': return Icons.cancel_outlined;
+      default: return Icons.history_rounded;
+    }
+  }
+
+  static Color _colorForOperation(String op) {
+    switch (op.toLowerCase()) {
+      case 'login':  return const Color(0xFF1A73E8);
+      case 'logout': return const Color(0xFF9AA0A6);
+      case 'created': case 'save': return const Color(0xFF34A853);
+      case 'submitted': return const Color(0xFF34A853);
+      case 'cancelled': return const Color(0xFFEA4335);
+      default: return const Color(0xFFFBBC04);
     }
   }
 

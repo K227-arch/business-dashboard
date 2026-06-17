@@ -60,13 +60,16 @@ class _CredentialsScreenState extends State<CredentialsScreen> {
 
                   // ── Icon ─────────────────────────────────────────────
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: scheme.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
+                      color: const Color(0xFF5B5EA6),
+                      borderRadius: BorderRadius.circular(24),
                     ),
-                    child: Icon(Icons.lock_outline_rounded,
-                        color: scheme.primary, size: 48),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      width: 70,
+                      height: 70,
+                    ),
                   ),
                   const SizedBox(height: 24),
 
