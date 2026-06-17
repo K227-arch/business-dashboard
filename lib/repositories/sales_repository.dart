@@ -21,7 +21,7 @@ class SalesRepository {
       // Fetch invoices + items concurrently
       final results = await Future.wait([
         FrappeApi.getSalesInvoices(fromDate: fromDate, toDate: toDate, limit: 500),
-        FrappeApi.getSalesInvoiceItems(limit: 500),
+        FrappeApi.getSalesInvoiceItems(fromDate: fromDate, toDate: toDate, limit: 500),
       ]);
 
       final invoices   = results[0];

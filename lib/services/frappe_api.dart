@@ -35,19 +35,41 @@ class FrappeApi {
     return res['data'] as List<dynamic>? ?? [];
   }
 
-  /// Sales Invoice line items for the Items breakdown.
-  /// Note: Sales Invoice Item is a child table without posting_date.
+  /// Sales Invoice line items — fetched by getting each invoice's items.
+  /// Uses parent document approach to avoid 403 on child table direct access.
   static Future<List<dynamic>> getSalesInvoiceItems({
+    String? fromDate,
+    String? toDate,
     int limit = 500,
   }) async {
-    final res = await FrappeClient.getList(
-      doctype: 'Sales Invoice Item',
-      fields: ['item_code', 'item_name', 'qty', 'amount', 'parent'],
-      filters: [['docstatus', '=', 1]],
-      orderBy: 'amount desc',
-      limit: limit,
+    // Fetch parent invoices first
+    final filters = <dynamic>[['docstatus', '=', 1]];
+    if (fromDate != null) filters.add(['posting_date', '>=', fromDate]);
+    if (toDate != null) filters.add(['posting_date', '<=', toDate]);
+
+    final invoices = await FrappeClient.getList(
+      doctype: 'Sales Invoice',
+      fields: ['name'],
+      filters: filters,
+      orderBy: 'posting_date desc',
+      limit: 200,
     );
-    return res['data'] as List<dynamic>? ?? [];
+
+    final invoiceList = invoices['data'] as List<dynamic>? ?? [];
+    final allItems = <dynamic>[];
+
+    // Fetch items from each invoice (batch to avoid too many requests)
+    for (final inv in invoiceList.take(50)) {
+      try {
+        final doc = await FrappeClient.getDoc(
+          doctype: 'Sales Invoice',
+          name: inv['name'].toString(),
+        );
+        final items = doc['data']?['items'] as List<dynamic>? ?? [];
+        allItems.addAll(items);
+      } catch (_) {}
+    }
+    return allItems;
   }
 
   /// Count of customers created in a date range.
@@ -173,6 +195,41 @@ class FrappeApi {
       limit: limit,
     );
     return res['data'] as List<dynamic>? ?? [];
+  }
+
+  /// Purchase Receipt Items — from Stock > Purchase Receipt.
+  /// Uses parent document approach to avoid 403 on child table direct access.
+  static Future<List<dynamic>> getPurchaseReceiptItems({
+    String? fromDate,
+    String? toDate,
+    int limit = 500,
+  }) async {
+    final filters = <dynamic>[['docstatus', '=', 1]];
+    if (fromDate != null) filters.add(['posting_date', '>=', fromDate]);
+    if (toDate != null) filters.add(['posting_date', '<=', toDate]);
+
+    final receipts = await FrappeClient.getList(
+      doctype: 'Purchase Receipt',
+      fields: ['name'],
+      filters: filters,
+      orderBy: 'posting_date desc',
+      limit: 200,
+    );
+
+    final receiptList = receipts['data'] as List<dynamic>? ?? [];
+    final allItems = <dynamic>[];
+
+    for (final receipt in receiptList.take(50)) {
+      try {
+        final doc = await FrappeClient.getDoc(
+          doctype: 'Purchase Receipt',
+          name: receipt['name'].toString(),
+        );
+        final items = doc['data']?['items'] as List<dynamic>? ?? [];
+        allItems.addAll(items);
+      } catch (_) {}
+    }
+    return allItems;
   }
 
   // ── Activity (Communications / Activity Log) ───────────────────────────

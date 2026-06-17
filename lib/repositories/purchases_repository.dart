@@ -58,7 +58,7 @@ class PurchasesRepository {
     try {
       final results = await Future.wait([
         FrappeApi.getPurchaseInvoices(fromDate: fromDate, toDate: toDate, limit: 500),
-        FrappeApi.getPurchaseInvoiceItems(fromDate: fromDate, toDate: toDate, limit: 500),
+        FrappeApi.getPurchaseReceiptItems(fromDate: fromDate, toDate: toDate, limit: 500),
       ]);
 
       final invoices = results[0];

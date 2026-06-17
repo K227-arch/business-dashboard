@@ -491,7 +491,7 @@ class _ItemsSection extends StatelessWidget {
   const _ItemsSection({required this.items});
 
   String _fmt(double v) {
-    if (v >= 1000000) return 'UGX ${(v / 1000000).toStringAsFixed(1)}M';
+    if (v >= 1000000) return 'UGX ${(v / 1000000).toStringAsFixed(2)}M';
     if (v >= 1000) return 'UGX ${(v / 1000).toStringAsFixed(0)}K';
     return 'UGX ${v.toStringAsFixed(0)}';
   }
@@ -499,95 +499,195 @@ class _ItemsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final totalCost = items.fold<double>(0, (sum, item) => sum + item.totalAmount);
+
     return Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Header ────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Center(
               child: Text(
-                'Items',
+                'Purchase Receipt Items',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
               ),
             ),
           ),
-          Divider(
-              height: 1, color: scheme.onSurface.withValues(alpha: 0.08)),
-          ...List.generate(items.length, (i) {
-            final item = items[i];
-            return Column(
+          Divider(height: 1, color: scheme.onSurface.withValues(alpha: 0.08)),
+
+          // ── Column headers ─────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 22,
-                        backgroundColor:
-                            const Color(0xFFFF8C42).withValues(alpha: 0.12),
-                        child: const Icon(
-                          Icons.inventory_2_rounded,
-                          color: Color(0xFFFF8C42),
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.name,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: scheme.onSurface,
-                                  ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              'x ${item.quantity}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: scheme.onSurface
-                                        .withValues(alpha: 0.5),
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          _fmt(item.totalAmount),
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: scheme.onSurface,
-                                  ),
-                        ),
-                      ),
-                    ],
-                  ),
+                Expanded(
+                  flex: 4,
+                  child: Text('Item',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: scheme.onSurface.withValues(alpha: 0.45),
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          )),
                 ),
-                if (i < items.length - 1)
+                SizedBox(
+                  width: 60,
+                  child: Text('Qty',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: scheme.onSurface.withValues(alpha: 0.45),
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          )),
+                ),
+                SizedBox(
+                  width: 90,
+                  child: Text('Cost',
+                      textAlign: TextAlign.right,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: scheme.onSurface.withValues(alpha: 0.45),
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          )),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: scheme.onSurface.withValues(alpha: 0.06)),
+
+          // ── Item rows ──────────────────────────────────────────────
+          if (items.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text(
+                  'No items for this period',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurface.withValues(alpha: 0.4),
+                      ),
+                ),
+              ),
+            )
+          else
+            ...List.generate(items.length, (i) {
+              final item = items[i];
+              final unitCost = item.quantity > 0
+                  ? item.totalAmount / item.quantity
+                  : item.totalAmount;
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 11),
+                    child: Row(
+                      children: [
+                        // Item name + unit cost
+                        Expanded(
+                          flex: 4,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.name,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: scheme.onSurface,
+                                    ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${_fmt(unitCost)} / unit',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelSmall
+                                    ?.copyWith(
+                                      color: scheme.onSurface
+                                          .withValues(alpha: 0.45),
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Quantity
+                        SizedBox(
+                          width: 60,
+                          child: Text(
+                            '${item.quantity}',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: scheme.onSurface
+                                      .withValues(alpha: 0.65),
+                                ),
+                          ),
+                        ),
+                        // Line total
+                        SizedBox(
+                          width: 90,
+                          child: Text(
+                            _fmt(item.totalAmount),
+                            textAlign: TextAlign.right,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: scheme.onSurface,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   Divider(
                     height: 1,
                     indent: 16,
-                    color: scheme.onSurface.withValues(alpha: 0.06),
+                    color: scheme.onSurface.withValues(alpha: 0.05),
                   ),
+                ],
+              );
+            }),
+
+          // ── Total cost row ─────────────────────────────────────────
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFFF8C42).withValues(alpha: 0.08),
+              borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(12)),
+            ),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Total Cost',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurface,
+                      ),
+                ),
+                Text(
+                  _fmt(totalCost),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFFF8C42),
+                  ),
+                ),
               ],
-            );
-          }),
-          const SizedBox(height: 8),
+            ),
+          ),
         ],
       ),
     );
