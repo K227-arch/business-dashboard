@@ -102,6 +102,24 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                     onFieldSubmitted: (_) => _connect(),
                   ),
+                  const SizedBox(height: 10),
+                  // ── Quick-select URL chips ─────────────────────────────
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      _UrlChip(
+                        label: 'Clinic Plus',
+                        url: 'https://clinicplus.techwise.africa',
+                        controller: _urlController,
+                      ),
+                      _UrlChip(
+                        label: 'Coles',
+                        url: 'https://coles.techwise.africa',
+                        controller: _urlController,
+                      ),
+                    ],
+                  ),
                   if (widget.auth.error != null) ...[
                     const SizedBox(height: 12),
                     Text(
@@ -131,6 +149,53 @@ class _LoginScreenState extends State<LoginScreen> {
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+// ── URL suggestion chip ─────────────────────────────────────────────────────
+class _UrlChip extends StatelessWidget {
+  final String label;
+  final String url;
+  final TextEditingController controller;
+
+  const _UrlChip({
+    required this.label,
+    required this.url,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = controller.text.trim().replaceAll(RegExp(r'/+$'), '') ==
+        url.replaceAll(RegExp(r'/+$'), '');
+    final scheme = Theme.of(context).colorScheme;
+
+    return GestureDetector(
+      onTap: () => controller.text = url,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? scheme.primary.withValues(alpha: 0.12)
+              : scheme.onSurface.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected
+                ? scheme.primary
+                : scheme.onSurface.withValues(alpha: 0.15),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            color: isSelected ? scheme.primary : scheme.onSurface.withValues(alpha: 0.65),
           ),
         ),
       ),

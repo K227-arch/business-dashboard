@@ -142,9 +142,19 @@ class AuthProvider extends ChangeNotifier {
       _lastEmail  = usr;
 
       // After successful password auth, switch to API token for all data calls
-      // This avoids 403s from session-based permissions
-      const apiKey    = '5b416ad75d749fa';
-      const apiSecret = 'f18ff236715f0d4';
+      // Use the correct API key based on the connected URL
+      String apiKey;
+      String apiSecret;
+
+      if (_baseUrl.contains('coles.techwise.africa')) {
+        apiKey    = '99f0b084dddc79f';
+        apiSecret = '25b184969844d16';
+      } else {
+        // Default for clinicplus.techwise.africa
+        apiKey    = '5b416ad75d749fa';
+        apiSecret = 'f18ff236715f0d4';
+      }
+
       final name = await FrappeClient.loginWithApiToken(
         apiKey:    apiKey,
         apiSecret: apiSecret,
