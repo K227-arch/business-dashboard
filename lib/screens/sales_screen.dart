@@ -401,12 +401,11 @@ class _RingStat extends StatelessWidget {
     required this.ringColor,
   });
 
-  /// Fill ratio: 0.05 minimum so the ring always shows something,
-  /// 1.0 for the highest value.
+  /// Fill ratio: 0.0 when zero data, up to 1.0 for the highest value.
   double get _fillRatio {
-    if (maxValue <= 0) return 0.05;
+    if (maxValue <= 0 || rawValue <= 0) return 0.0;
     final ratio = rawValue / maxValue;
-    return ratio.clamp(0.05, 1.0);
+    return ratio.clamp(0.0, 1.0);
   }
 
   @override
@@ -425,11 +424,13 @@ class _RingStat extends StatelessWidget {
                 width: 88,
                 height: 88,
                 child: CircularProgressIndicator(
-                  value: _fillRatio,
+                  value: _fillRatio == 0.0 ? 0.0 : _fillRatio,
                   strokeWidth: 6,
                   backgroundColor: ringColor.withValues(alpha: 0.15),
-                  valueColor: AlwaysStoppedAnimation<Color>(ringColor),
-                  strokeCap: StrokeCap.round,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    _fillRatio == 0.0 ? Colors.transparent : ringColor,
+                  ),
+                  strokeCap: _fillRatio == 0.0 ? StrokeCap.butt : StrokeCap.round,
                 ),
               ),
               Padding(
