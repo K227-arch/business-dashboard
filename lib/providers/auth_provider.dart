@@ -129,7 +129,7 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Password login (fallback) ──────────────────────────────────────────
+  // ── Password login ──────────────────────────────────────────────────────
 
   Future<void> login({required String usr, required String pwd}) async {
     _error  = null;
@@ -137,38 +137,29 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Attempt password login to verify credentials
+      // Login with email + password — session cookie is stored in FrappeClient
       await FrappeClient.login(usr: usr, pwd: pwd);
-      _lastEmail  = usr;
+      _lastEmail = usr;
 
-      // After successful password auth, switch to API token for all data calls
-      // Use the correct API key based on the connected URL
-      String apiKey;
-      String apiSecret;
-
-      if (_baseUrl.contains('coles.techwise.africa')) {
-        apiKey    = '99f0b084dddc79f';
-        apiSecret = '25b184969844d16';
-      } else {
-        // Default for clinicplus.techwise.africa
-        apiKey    = '5b416ad75d749fa';
-        apiSecret = 'f18ff236715f0d4';
+      // Get the logged-in user's full name
+      try {
+        final userRes = await FrappeClient.callMethod(
+            method: 'frappe.auth.get_logged_user');
+        _userName = userRes['message']?.toString() ?? usr;
+      } catch (_) {
+        _userName = usr;
       }
 
-      final name = await FrappeClient.loginWithApiToken(
-        apiKey:    apiKey,
-        apiSecret: apiSecret,
-      );
-
-      _userName   = name.isNotEmpty ? name : usr;
-      _status     = AuthStatus.authenticated;
-      _error      = null;
+      _status = AuthStatus.authenticated;
+      _error  = null;
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('userName', _userName);
       await prefs.setString('lastEmail', usr);
-      await prefs.setString('apiToken', '$apiKey:$apiSecret');
-      await prefs.remove('sessionCookie');
+      await prefs.setString('baseUrl', _baseUrl);
+      // Store session cookie for restore on next app launch
+      await prefs.setString('sessionCookie', FrappeClient.sessionCookie ?? '');
+      await prefs.remove('apiToken');
     } on FrappeException catch (e) {
       _error  = e.message;
       _status = AuthStatus.needsLogin;
