@@ -23,17 +23,30 @@ class _StockScreenState extends State<StockScreen>
   List<StockItem> _stockOut = [];
   List<BatchItem> _expiryAlerts = [];
   bool _loading = true;
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
+
+  // ── Per-tab filter state ────────────────────────────────────────────
+  String _ageingWarehouseFilter = 'All';       // warehouse name or 'All'
+  String _lowStockLevel = 'All';               // 'Critical', 'Low', 'All'
+  String _topSellersPeriod = 'This Month';     // 'This Week', 'This Month', 'This Quarter'
+  String _itemsSalesPeriod = 'This Month';     // 'This Week', 'This Month', 'This Quarter'
+  String _alertTypeFilter = 'All';             // 'All', 'Stock Out', 'Expiry'
 
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: 5, vsync: this);
+    _tab.addListener(() {
+      if (!_tab.indexIsChanging) setState(() {});
+    });
     _load();
   }
 
   @override
   void dispose() {
     _tab.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -43,8 +56,8 @@ class _StockScreenState extends State<StockScreen>
       final results = await Future.wait([
         _repo.getAgeingStock(),
         _repo.getLowStockItems(),
-        _repo.getTopSellers(),
-        _repo.getItemsWithSales(),
+        _repo.getTopSellers(from: _periodStart(_topSellersPeriod), to: DateTime.now()),
+        _repo.getItemsWithSales(from: _periodStart(_itemsSalesPeriod), to: DateTime.now()),
         _repo.getStockOutItems(),
         _repo.getExpiryAlerts(),
       ]);
@@ -63,6 +76,38 @@ class _StockScreenState extends State<StockScreen>
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  DateTime _periodStart(String period) {
+    final now = DateTime.now();
+    switch (period) {
+      case 'This Week':
+        return now.subtract(Duration(days: now.weekday - 1));
+      case 'This Quarter':
+        final qMonth = ((now.month - 1) ~/ 3) * 3 + 1;
+        return DateTime(now.year, qMonth, 1);
+      case 'This Month':
+      default:
+        return DateTime(now.year, now.month, 1);
+    }
+  }
+
+  /// Reload only sales-related tabs when period changes
+  Future<void> _reloadSalesTabs() async {
+    setState(() => _loading = true);
+    try {
+      final results = await Future.wait([
+        _repo.getTopSellers(from: _periodStart(_topSellersPeriod), to: DateTime.now()),
+        _repo.getItemsWithSales(from: _periodStart(_itemsSalesPeriod), to: DateTime.now()),
+      ]);
+      if (mounted) {
+        setState(() {
+          _topSellers = results[0] as List<TopSellerItem>;
+          _itemsSales = results[1] as List<TopSellerItem>;
+        });
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _loading = false);
   }
 
   @override
@@ -120,6 +165,46 @@ class _StockScreenState extends State<StockScreen>
               ],
             ),
 
+            // ── Search bar ─────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
+                decoration: InputDecoration(
+                  hintText: 'Search items...',
+                  prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded, size: 18),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        )
+                      : null,
+                  isDense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: scheme.outline.withValues(alpha: 0.3)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: scheme.outline.withValues(alpha: 0.3)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: scheme.primary),
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Contextual filter chips per tab ───────────────────────
+            _buildFilterChips(scheme),
+
             // ── Tab content ───────────────────────────────────────────
             Expanded(
               child: _loading
@@ -141,32 +226,167 @@ class _StockScreenState extends State<StockScreen>
     );
   }
 
+  // ── Contextual filter chips builder ──────────────────────────────────
+  Widget _buildFilterChips(ColorScheme scheme) {
+    switch (_tab.index) {
+      case 0: // Ageing Stock → filter by warehouse
+        final warehouses = <String>{'All', ..._ageingStock.map((e) => e.warehouse)};
+        return _chipRow(
+          items: warehouses.toList(),
+          selected: _ageingWarehouseFilter,
+          onSelected: (v) => setState(() => _ageingWarehouseFilter = v),
+          scheme: scheme,
+        );
+      case 1: // Low Stock → filter by severity
+        return _chipRow(
+          items: const ['All', 'Critical (≤2)', 'Low (≤5)'],
+          selected: _lowStockLevel,
+          onSelected: (v) => setState(() => _lowStockLevel = v),
+          scheme: scheme,
+        );
+      case 2: // Top Sellers → filter by time period
+        return _chipRow(
+          items: const ['This Week', 'This Month', 'This Quarter'],
+          selected: _topSellersPeriod,
+          onSelected: (v) {
+            setState(() => _topSellersPeriod = v);
+            _reloadSalesTabs();
+          },
+          scheme: scheme,
+        );
+      case 3: // Items & Sales → filter by time period
+        return _chipRow(
+          items: const ['This Week', 'This Month', 'This Quarter'],
+          selected: _itemsSalesPeriod,
+          onSelected: (v) {
+            setState(() => _itemsSalesPeriod = v);
+            _reloadSalesTabs();
+          },
+          scheme: scheme,
+        );
+      case 4: // Alerts → filter by type
+        return _chipRow(
+          items: const ['All', 'Stock Out', 'Expiry'],
+          selected: _alertTypeFilter,
+          onSelected: (v) => setState(() => _alertTypeFilter = v),
+          scheme: scheme,
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _chipRow({
+    required List<String> items,
+    required String selected,
+    required ValueChanged<String> onSelected,
+    required ColorScheme scheme,
+  }) {
+    return SizedBox(
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, i) {
+          final label = items[i];
+          final isActive = label == selected;
+          return ChoiceChip(
+            label: Text(label, style: TextStyle(fontSize: 11,
+              color: isActive ? scheme.onPrimary : scheme.onSurface)),
+            selected: isActive,
+            selectedColor: scheme.primary,
+            backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            onSelected: (_) => onSelected(label),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+          );
+        },
+      ),
+    );
+  }
+
+  // ── Filtered helpers ─────────────────────────────────────────────────
+  List<StockItem> _filterStock(List<StockItem> list) {
+    var filtered = list;
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered
+          .where((e) =>
+              e.itemCode.toLowerCase().contains(_searchQuery) ||
+              e.warehouse.toLowerCase().contains(_searchQuery))
+          .toList();
+    }
+    return filtered;
+  }
+
+  List<TopSellerItem> _filterSellers(List<TopSellerItem> list) {
+    if (_searchQuery.isEmpty) return list;
+    return list
+        .where((e) => e.itemName.toLowerCase().contains(_searchQuery))
+        .toList();
+  }
+
+  List<BatchItem> _filterBatches(List<BatchItem> list) {
+    if (_searchQuery.isEmpty) return list;
+    return list
+        .where((e) =>
+            e.item.toLowerCase().contains(_searchQuery) ||
+            e.batchId.toLowerCase().contains(_searchQuery))
+        .toList();
+  }
+
   // ── 1. Ageing Stock ────────────────────────────────────────────────────
-  Widget _buildAgeingTab() => _StockList(
-        items: _ageingStock,
-        emptyMsg: 'No items in stock',
-        colorFn: (item) => const Color(0xFF1A73E8),
-      );
+  Widget _buildAgeingTab() {
+    var items = _filterStock(_ageingStock);
+    // Apply warehouse filter
+    if (_ageingWarehouseFilter != 'All') {
+      items = items.where((e) => e.warehouse == _ageingWarehouseFilter).toList();
+    }
+    return _StockList(
+      items: items,
+      emptyMsg: _searchQuery.isNotEmpty || _ageingWarehouseFilter != 'All'
+          ? 'No matching items'
+          : 'No items in stock',
+      colorFn: (item) => const Color(0xFF1A73E8),
+    );
+  }
 
   // ── 2. Low Stock ───────────────────────────────────────────────────────
-  Widget _buildLowStockTab() => _StockList(
-        items: _lowStock,
-        emptyMsg: 'No items running low',
-        colorFn: (item) => item.actualQty <= 2
-            ? const Color(0xFFEA4335)
-            : const Color(0xFFFBBC04),
-      );
+  Widget _buildLowStockTab() {
+    var items = _filterStock(_lowStock);
+    // Apply severity filter
+    if (_lowStockLevel == 'Critical (≤2)') {
+      items = items.where((e) => e.actualQty <= 2).toList();
+    } else if (_lowStockLevel == 'Low (≤5)') {
+      items = items.where((e) => e.actualQty > 2 && e.actualQty <= 5).toList();
+    }
+    return _StockList(
+      items: items,
+      emptyMsg: _searchQuery.isNotEmpty || _lowStockLevel != 'All'
+          ? 'No matching items'
+          : 'No items running low',
+      colorFn: (item) => item.actualQty <= 2
+          ? const Color(0xFFEA4335)
+          : const Color(0xFFFBBC04),
+    );
+  }
 
   // ── 3. Top Sellers ─────────────────────────────────────────────────────
   Widget _buildTopSellersTab() {
-    if (_topSellers.isEmpty) {
-      return const Center(child: Text('No sales data this month'));
+    final filtered = _filterSellers(_topSellers);
+    if (filtered.isEmpty) {
+      return Center(
+          child: Text(_searchQuery.isNotEmpty
+              ? 'No matching items'
+              : 'No sales data this month'));
     }
     return ListView.builder(
       padding: const EdgeInsets.all(12),
-      itemCount: _topSellers.length,
+      itemCount: filtered.length,
       itemBuilder: (_, i) {
-        final item = _topSellers[i];
+        final item = filtered[i];
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
@@ -195,14 +415,18 @@ class _StockScreenState extends State<StockScreen>
 
   // ── 4. Items & Sales ───────────────────────────────────────────────────
   Widget _buildItemsSalesTab() {
-    if (_itemsSales.isEmpty) {
-      return const Center(child: Text('No items with sales'));
+    final filtered = _filterSellers(_itemsSales);
+    if (filtered.isEmpty) {
+      return Center(
+          child: Text(_searchQuery.isNotEmpty
+              ? 'No matching items'
+              : 'No items with sales'));
     }
     return ListView.builder(
       padding: const EdgeInsets.all(12),
-      itemCount: _itemsSales.length,
+      itemCount: filtered.length,
       itemBuilder: (_, i) {
-        final item = _itemsSales[i];
+        final item = filtered[i];
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
@@ -225,20 +449,28 @@ class _StockScreenState extends State<StockScreen>
 
   // ── 5. Alerts ──────────────────────────────────────────────────────────
   Widget _buildAlertsTab() {
-    if (_stockOut.isEmpty && _expiryAlerts.isEmpty) {
-      return const Center(child: Text('No alerts'));
+    final showStockOut = _alertTypeFilter == 'All' || _alertTypeFilter == 'Stock Out';
+    final showExpiry = _alertTypeFilter == 'All' || _alertTypeFilter == 'Expiry';
+    final filteredStockOut = showStockOut ? _filterStock(_stockOut) : <StockItem>[];
+    final filteredExpiry = showExpiry ? _filterBatches(_expiryAlerts) : <BatchItem>[];
+
+    if (filteredStockOut.isEmpty && filteredExpiry.isEmpty) {
+      return Center(
+          child: Text(_searchQuery.isNotEmpty || _alertTypeFilter != 'All'
+              ? 'No matching alerts'
+              : 'No alerts'));
     }
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
-        if (_stockOut.isNotEmpty) ...[
+        if (filteredStockOut.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.only(bottom: 8, top: 4),
-            child: Text('Stock Out (${_stockOut.length})',
+            child: Text('Stock Out (${filteredStockOut.length})',
                 style: const TextStyle(
                     fontWeight: FontWeight.bold, fontSize: 14)),
           ),
-          ..._stockOut.map((item) => Card(
+          ...filteredStockOut.map((item) => Card(
                 margin: const EdgeInsets.only(bottom: 6),
                 child: ListTile(
                   leading: const CircleAvatar(
@@ -257,14 +489,14 @@ class _StockScreenState extends State<StockScreen>
                 ),
               )),
         ],
-        if (_expiryAlerts.isNotEmpty) ...[
+        if (filteredExpiry.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.only(bottom: 8, top: 12),
-            child: Text('Expiry Alerts (${_expiryAlerts.length})',
+            child: Text('Expiry Alerts (${filteredExpiry.length})',
                 style: const TextStyle(
                     fontWeight: FontWeight.bold, fontSize: 14)),
           ),
-          ..._expiryAlerts.map((batch) => Card(
+          ...filteredExpiry.map((batch) => Card(
                 margin: const EdgeInsets.only(bottom: 6),
                 child: ListTile(
                   leading: CircleAvatar(

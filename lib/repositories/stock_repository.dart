@@ -112,21 +112,26 @@ class StockRepository {
     }
   }
 
-  // ── 3. Top Sellers (by qty sold this month) ────────────────────────────
-  Future<List<TopSellerItem>> getTopSellers() async {
+  // ── 3. Top Sellers (by qty sold in date range) ──────────────────────────
+  Future<List<TopSellerItem>> getTopSellers({
+    DateTime? from,
+    DateTime? to,
+  }) async {
     try {
       final now = DateTime.now();
-      final monthStart = '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
-      final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final startDate = from ?? DateTime(now.year, now.month, 1);
+      final endDate = to ?? now;
+      final startStr = '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}';
+      final endStr = '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}';
 
-      // Fetch all invoice items this month
+      // Fetch all invoice items in date range
       final invoices = await FrappeClient.getList(
         doctype: 'Sales Invoice',
         fields: ['name'],
         filters: [
           ['docstatus', '=', 1],
-          ['posting_date', '>=', monthStart],
-          ['posting_date', '<=', today],
+          ['posting_date', '>=', startStr],
+          ['posting_date', '<=', endStr],
         ],
         limit: 1000,
       );
@@ -164,10 +169,13 @@ class StockRepository {
   }
 
   // ── 4. Items with their sales (all items + qty sold) ───────────────────
-  Future<List<TopSellerItem>> getItemsWithSales() async {
+  Future<List<TopSellerItem>> getItemsWithSales({
+    DateTime? from,
+    DateTime? to,
+  }) async {
     // Same as top sellers but sorted by amount
     try {
-      final topSellers = await getTopSellers();
+      final topSellers = await getTopSellers(from: from, to: to);
       topSellers.sort((a, b) => b.totalAmount.compareTo(a.totalAmount));
       return topSellers;
     } catch (_) {
