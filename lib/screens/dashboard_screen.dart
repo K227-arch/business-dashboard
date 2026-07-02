@@ -375,12 +375,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
     final items = _ageingStock.take(5).toList();
     return Column(
-      children: items.map((item) => _StockTile(
-            title: item.itemCode,
-            subtitle: item.warehouse,
-            trailing: '${item.actualQty.toStringAsFixed(0)} in stock',
-            color: const Color(0xFF1A73E8),
-          )).toList(),
+      children: items.map((item) {
+        final ageStr = item.ageDays != null ? '${item.ageDays}d old' : 'N/A';
+        final color = item.ageDays != null && item.ageDays! > 90
+            ? const Color(0xFFEA4335)
+            : item.ageDays != null && item.ageDays! > 30
+                ? const Color(0xFFFBBC04)
+                : const Color(0xFF1A73E8);
+        return _StockTile(
+          title: item.itemCode,
+          subtitle: '${item.warehouse}  •  Qty: ${item.actualQty.toStringAsFixed(0)}',
+          trailing: ageStr,
+          color: color,
+        );
+      }).toList(),
     );
   }
 

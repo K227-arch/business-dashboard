@@ -12,12 +12,14 @@ class StockItem {
   final double actualQty;
   final double projectedQty;
   final String warehouse;
+  final int? ageDays; // days since last stock entry
 
   const StockItem({
     required this.itemCode,
     required this.actualQty,
     required this.projectedQty,
     required this.warehouse,
+    this.ageDays,
   });
 }
 
@@ -76,12 +78,49 @@ class StockRepository {
         limit: 1000,
       );
       final data = res['data'] as List<dynamic>? ?? [];
-      return data.map((d) => StockItem(
-            itemCode: d['item_code']?.toString() ?? '',
-            actualQty: _toDouble(d['actual_qty']),
-            projectedQty: _toDouble(d['projected_qty']),
-            warehouse: d['warehouse']?.toString() ?? '',
-          )).toList();
+
+      // Get last Stock Ledger Entry date per item to calculate age
+      final Map<String, DateTime> lastEntryDates = {};
+      try {
+        final ledger = await FrappeClient.getList(
+          doctype: 'Stock Ledger Entry',
+          fields: ['item_code', 'posting_date'],
+          filters: [['actual_qty', '>', 0]],
+          orderBy: 'posting_date desc',
+          limit: 1000,
+        );
+        final ledgerData = ledger['data'] as List<dynamic>? ?? [];
+        for (final entry in ledgerData) {
+          final code = entry['item_code']?.toString() ?? '';
+          final dateStr = entry['posting_date']?.toString() ?? '';
+          if (code.isNotEmpty && dateStr.isNotEmpty && !lastEntryDates.containsKey(code)) {
+            final dt = DateTime.tryParse(dateStr);
+            if (dt != null) lastEntryDates[code] = dt;
+          }
+        }
+      } catch (_) {
+        // If Stock Ledger Entry isn't accessible, continue without age
+      }
+
+      final now = DateTime.now();
+      final items = data.map((d) {
+        final code = d['item_code']?.toString() ?? '';
+        int? age;
+        if (lastEntryDates.containsKey(code)) {
+          age = now.difference(lastEntryDates[code]!).inDays;
+        }
+        return StockItem(
+          itemCode: code,
+          actualQty: _toDouble(d['actual_qty']),
+          projectedQty: _toDouble(d['projected_qty']),
+          warehouse: d['warehouse']?.toString() ?? '',
+          ageDays: age,
+        );
+      }).toList();
+
+      // Sort by age descending (oldest first)
+      items.sort((a, b) => (b.ageDays ?? 0).compareTo(a.ageDays ?? 0));
+      return items;
     } catch (_) {
       return [];
     }

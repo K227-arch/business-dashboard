@@ -344,12 +344,11 @@ class _StockScreenState extends State<StockScreen>
     if (_ageingWarehouseFilter != 'All') {
       items = items.where((e) => e.warehouse == _ageingWarehouseFilter).toList();
     }
-    return _StockList(
+    return _AgeingStockList(
       items: items,
       emptyMsg: _searchQuery.isNotEmpty || _ageingWarehouseFilter != 'All'
           ? 'No matching items'
           : 'No items in stock',
-      colorFn: (item) => const Color(0xFF1A73E8),
     );
   }
 
@@ -591,6 +590,81 @@ class _StockList extends StatelessWidget {
                           .withValues(alpha: 0.5)),
                 ),
               ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ── Ageing Stock list (shows age in days) ────────────────────────────────────
+class _AgeingStockList extends StatelessWidget {
+  final List<StockItem> items;
+  final String emptyMsg;
+
+  const _AgeingStockList({
+    required this.items,
+    required this.emptyMsg,
+  });
+
+  Color _ageColor(int? days) {
+    if (days == null) return const Color(0xFF1A73E8);
+    if (days > 90) return const Color(0xFFEA4335);   // red — very old
+    if (days > 30) return const Color(0xFFFBBC04);   // yellow — aging
+    return const Color(0xFF34A853);                   // green — fresh
+  }
+
+  String _ageLabel(int? days) {
+    if (days == null) return 'N/A';
+    if (days == 0) return 'Today';
+    if (days == 1) return '1 day';
+    if (days < 30) return '$days days';
+    if (days < 60) return '${(days / 7).round()} weeks';
+    return '${(days / 30).round()} months';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) return Center(child: Text(emptyMsg));
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: items.length,
+      itemBuilder: (_, i) {
+        final item = items[i];
+        final color = _ageColor(item.ageDays);
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: color.withValues(alpha: 0.12),
+              child: Icon(Icons.access_time_rounded, size: 18, color: color),
+            ),
+            title: Text(item.itemCode,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600, fontSize: 13),
+                overflow: TextOverflow.ellipsis),
+            subtitle: Text(
+              '${item.warehouse}  •  Qty: ${item.actualQty.toStringAsFixed(0)}',
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6)),
+            ),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                _ageLabel(item.ageDays),
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, color: color, fontSize: 11),
+              ),
             ),
           ),
         );
