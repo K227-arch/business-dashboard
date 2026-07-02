@@ -65,9 +65,6 @@ class PurchasesRepository {
       final itemsRaw = results[1];
 
       final receipts = invoices.length;
-      final totalSpend = invoices.fold<double>(
-          0, (s, i) => s + _toDouble(i['grand_total']));
-      final averagePurchase = receipts == 0 ? 0.0 : totalSpend / receipts;
       final chartData = _buildChartData(invoices, period);
 
       final Map<String, _ItemAgg> agg = {};
@@ -80,11 +77,15 @@ class PurchasesRepository {
       }
 
       final items = agg.values.toList()..sort((a, b) => b.amount.compareTo(a.amount));
-      final purchaseItems = items.take(20).map((a) => PurchaseItemModel(
+      final purchaseItems = items.map((a) => PurchaseItemModel(
             name: a.name.toUpperCase(),
             quantity: a.qty.toInt(),
             totalAmount: a.amount,
           )).toList();
+
+      // Total spend = sum of all item amounts (matches items list total exactly)
+      final totalSpend = items.fold<double>(0, (s, i) => s + i.amount);
+      final averagePurchase = receipts == 0 ? 0.0 : totalSpend / receipts;
 
       return PurchasesSummary(
         receipts: receipts,

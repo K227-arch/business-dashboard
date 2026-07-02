@@ -26,7 +26,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final data = await _repo.getPurchaseList(limit: 100);
+      final data = await _repo.getPurchaseList(limit: 1000);
       if (mounted) setState(() => _liveData = data);
     } catch (e) {
       if (mounted && !kIsWeb) setState(() => _error = e.toString());

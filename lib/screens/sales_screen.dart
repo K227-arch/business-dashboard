@@ -362,12 +362,12 @@ class _SalesSummaryCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _RingStat(
-                  value: _fmt(summary.averageSale),
-                  rawValue: summary.averageSale,
-                  maxValue: summary.averageSale,
+                  value: _fmt(summary.netSales),
+                  rawValue: summary.netSales,
+                  maxValue: summary.netSales,
                   label: 'Total Sales',
-                  change: _fmtChange(summary.averageSaleChange),
-                  changeColor: _changeColor(summary.averageSaleChange),
+                  change: _fmtChange(summary.netSalesChange),
+                  changeColor: _changeColor(summary.netSalesChange),
                   ringColor: const Color(0xFF1A73E8),
                 ),
               ],

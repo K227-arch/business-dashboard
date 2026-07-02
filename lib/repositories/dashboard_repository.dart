@@ -23,8 +23,8 @@ class DashboardRepository {
 
     try {
       final results = await Future.wait([
-        FrappeApi.getSalesInvoices(fromDate: thisMonthStart, toDate: today),
-        FrappeApi.getPurchaseReceipts(fromDate: thisMonthStart, toDate: today),
+        FrappeApi.getSalesInvoices(fromDate: thisMonthStart, toDate: today, limit: 1000),
+        FrappeApi.getPurchaseReceipts(fromDate: thisMonthStart, toDate: today, limit: 1000),
       ]);
 
       final invoices  = results[0];

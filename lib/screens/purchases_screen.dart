@@ -365,12 +365,12 @@ class _PurchasesSummaryCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _RingStat(
-                  value: _fmt(summary.averagePurchase),
-                  rawValue: summary.averagePurchase,
-                  maxValue: summary.averagePurchase,
+                  value: _fmt(summary.totalSpend),
+                  rawValue: summary.totalSpend,
+                  maxValue: summary.totalSpend,
                   label: 'Total Purchases',
-                  change: _fmtChange(summary.averagePurchaseChange),
-                  changeColor: _changeColor(summary.averagePurchaseChange),
+                  change: _fmtChange(summary.totalSpendChange),
+                  changeColor: _changeColor(summary.totalSpendChange),
                   ringColor: const Color(0xFF1A73E8),
                 ),
               ],

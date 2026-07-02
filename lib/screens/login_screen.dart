@@ -17,7 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _urlController.text = 'https://clinicplus.techwise.africa/';
+    _urlController.text = 'https://coles.techwise.africa';
   }
 
   @override
@@ -108,11 +108,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     spacing: 8,
                     runSpacing: 6,
                     children: [
-                      _UrlChip(
-                        label: 'Clinic Plus',
-                        url: 'https://clinicplus.techwise.africa',
-                        controller: _urlController,
-                      ),
                       _UrlChip(
                         label: 'Coles',
                         url: 'https://coles.techwise.africa',

@@ -4,6 +4,7 @@ import '../providers/theme_provider.dart';
 import 'dashboard_screen.dart';
 import 'sales_screen.dart';
 import 'purchases_screen.dart';
+import 'stock_screen.dart';
 
 class MainShell extends StatefulWidget {
   final AuthProvider authProvider;
@@ -42,6 +43,7 @@ class _MainShellState extends State<MainShell> {
       ),
       SalesScreen(baseUrl: baseUrl),
       PurchasesScreen(baseUrl: baseUrl),
+      const StockScreen(),
     ];
 
     return Scaffold(
@@ -66,6 +68,11 @@ class _MainShellState extends State<MainShell> {
             icon: Icon(Icons.shopping_cart_outlined),
             selectedIcon: Icon(Icons.shopping_cart),
             label: 'Purchases',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.inventory_2_outlined),
+            selectedIcon: Icon(Icons.inventory_2),
+            label: 'Stock',
           ),
         ],
       ),

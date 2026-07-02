@@ -28,9 +28,6 @@ class SalesRepository {
       final itemsRaw   = results[1];
 
       final receipts   = invoices.length;
-      final netSales   = invoices.fold<double>(
-          0, (s, i) => s + _toDouble(i['net_total']));
-      final averageSale = receipts == 0 ? 0.0 : netSales / receipts;
       final hourlyData = _buildChartData(invoices, period);
 
       final Map<String, _ItemAgg> agg = {};
@@ -46,11 +43,15 @@ class SalesRepository {
       }
 
       final items = agg.values.toList()..sort((a, b) => b.amount.compareTo(a.amount));
-      final saleItems = items.take(20).map((a) => SaleItemModel(
+      final saleItems = items.map((a) => SaleItemModel(
             name: a.name.toUpperCase(),
             quantity: a.qty.toInt(),
             totalAmount: a.amount,
           )).toList();
+
+      // Net sales = sum of all item amounts (matches items list total exactly)
+      final netSales = items.fold<double>(0, (s, i) => s + i.amount);
+      final averageSale = receipts == 0 ? 0.0 : netSales / receipts;
 
       return SalesSummary(
         receipts: receipts,

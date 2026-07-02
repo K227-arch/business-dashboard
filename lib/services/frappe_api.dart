@@ -52,14 +52,14 @@ class FrappeApi {
       fields: ['name'],
       filters: filters,
       orderBy: 'posting_date desc',
-      limit: 200,
+      limit: 1000,
     );
 
     final invoiceList = invoices['data'] as List<dynamic>? ?? [];
     final allItems = <dynamic>[];
 
-    // Fetch items from each invoice (batch to avoid too many requests)
-    for (final inv in invoiceList.take(50)) {
+    // Fetch items from each invoice
+    for (final inv in invoiceList) {
       try {
         final doc = await FrappeClient.getDoc(
           doctype: 'Sales Invoice',
@@ -233,13 +233,13 @@ class FrappeApi {
       fields: ['name'],
       filters: filters,
       orderBy: 'posting_date desc',
-      limit: 200,
+      limit: 1000,
     );
 
     final receiptList = receipts['data'] as List<dynamic>? ?? [];
     final allItems = <dynamic>[];
 
-    for (final receipt in receiptList.take(50)) {
+    for (final receipt in receiptList) {
       try {
         final doc = await FrappeClient.getDoc(
           doctype: 'Purchase Receipt',
